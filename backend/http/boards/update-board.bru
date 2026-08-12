@@ -1,0 +1,26 @@
+meta {
+  name: Update Board
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{BASE_URL}}/boards/{{BOARD_ID}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{JWT_TOKEN}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Updated Board Name",
+    "description": "Updated description"
+  }
+}

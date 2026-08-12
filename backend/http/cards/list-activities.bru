@@ -1,0 +1,15 @@
+meta {
+  name: List Activities
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{BASE_URL}}/cards/{{CARD_ID}}/activities
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{JWT_TOKEN}}
+}

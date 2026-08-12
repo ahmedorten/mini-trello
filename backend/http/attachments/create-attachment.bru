@@ -1,0 +1,19 @@
+meta {
+  name: Create Attachment
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{BASE_URL}}/cards/{{CARD_ID}}/attachments
+  body: multipartForm
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{JWT_TOKEN}}
+}
+
+body:multipart-form {
+  file: @file(dummy.txt)
+}

@@ -1,0 +1,25 @@
+meta {
+  name: Create Checklist Item
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{BASE_URL}}/checklists/{{CHECKLIST_ID}}/items
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{JWT_TOKEN}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "title": "My Checklist Item"
+  }
+}

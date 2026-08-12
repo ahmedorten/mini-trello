@@ -1,0 +1,15 @@
+meta {
+  name: Get Column
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{BASE_URL}}/columns/{{COLUMN_ID}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{JWT_TOKEN}}
+}

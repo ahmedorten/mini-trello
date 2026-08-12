@@ -1,0 +1,19 @@
+meta {
+  name: Label Filter
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{BASE_URL}}/cards/search
+  body: none
+  auth: bearer
+}
+
+query {
+  labelId: 00000000-0000-0000-0000-000000000000
+}
+
+auth:bearer {
+  token: {{JWT_TOKEN}}
+}

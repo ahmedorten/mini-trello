@@ -1,0 +1,15 @@
+meta {
+  name: Delete Card
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{BASE_URL}}/cards/{{CARD_ID}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{JWT_TOKEN}}
+}

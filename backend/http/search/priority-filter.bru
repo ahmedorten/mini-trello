@@ -1,0 +1,19 @@
+meta {
+  name: Priority Filter
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{BASE_URL}}/cards/search
+  body: none
+  auth: bearer
+}
+
+query {
+  priority: HIGH
+}
+
+auth:bearer {
+  token: {{JWT_TOKEN}}
+}

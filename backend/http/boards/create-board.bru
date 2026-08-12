@@ -1,0 +1,26 @@
+meta {
+  name: Create Board
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{BASE_URL}}/boards
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{JWT_TOKEN}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "My First Board",
+    "description": "A board for planning my project"
+  }
+}

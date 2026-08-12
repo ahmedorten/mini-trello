@@ -1,0 +1,15 @@
+meta {
+  name: Delete Board
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{BASE_URL}}/boards/{{BOARD_ID}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{JWT_TOKEN}}
+}

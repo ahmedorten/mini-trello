@@ -1,0 +1,48 @@
+@import '../../shared/theme/tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Unified Focus Ring System ─────────────────────────────────────
+   Use focus-visible:focus-ring on interactive elements.
+   This ensures the ring only appears on keyboard focus, not mouse.
+──────────────────────────────────────────────────────────────────── */
+@layer utilities {
+  .focus-ring {
+    @apply outline-none ring-2 ring-indigo-500/50 ring-offset-2 ring-offset-white dark:ring-offset-gray-900;
+  }
+
+  /* For elements on dark backgrounds (sidebar, dark overlays) */
+  .focus-ring-invert {
+    @apply outline-none ring-2 ring-indigo-400/60 ring-offset-1 ring-offset-gray-900;
+  }
+}
+
+/* ─── Drag-and-Drop Visual Polish ───────────────────────────────── */
+.ghost-card {
+  background-color: rgba(99, 102, 241, 0.05) !important;
+  border: 2px dashed rgb(99, 102, 241) !important;
+  border-radius: 0.75rem !important;
+  opacity: 0.45 !important;
+  box-shadow: none !important;
+  transition: transform var(--duration-fast) var(--ease-spring);
+}
+
+.drag-card {
+  transform: rotate(2deg) scale(1.02) !important;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15) !important;
+  cursor: grabbing !important;
+  opacity: 0.95 !important;
+  z-index: var(--z-drag-overlay) !important;
+  transition: transform var(--duration-fast) var(--ease-spring), box-shadow var(--duration-fast) var(--ease-spring);
+}
+
+/* Active Column Highlight (native :has() and fallback class) */
+.column-card.is-drag-over,
+.column-card:has(.ghost-card) {
+  border-color: rgba(99, 102, 241, 0.5) !important;
+  background-color: rgba(99, 102, 241, 0.02) !important;
+  box-shadow: inset 0 0 12px rgba(99, 102, 241, 0.03);
+}
+

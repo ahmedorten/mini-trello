@@ -1,0 +1,25 @@
+meta {
+  name: Update Column
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{BASE_URL}}/columns/{{COLUMN_ID}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{JWT_TOKEN}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Updated Column Name"
+  }
+}

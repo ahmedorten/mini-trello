@@ -1,0 +1,15 @@
+meta {
+  name: Delete Attachment Record
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{BASE_URL}}/attachments/{{ATTACHMENT_ID}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{JWT_TOKEN}}
+}

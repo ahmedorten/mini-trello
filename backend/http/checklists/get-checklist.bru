@@ -1,0 +1,15 @@
+meta {
+  name: Get Checklist
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{BASE_URL}}/checklists/{{CHECKLIST_ID}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{JWT_TOKEN}}
+}

@@ -1,0 +1,15 @@
+meta {
+  name: Delete Column
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{BASE_URL}}/columns/{{COLUMN_ID}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{JWT_TOKEN}}
+}

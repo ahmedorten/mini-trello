@@ -1,0 +1,19 @@
+meta {
+  name: Comments Filter
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{BASE_URL}}/cards/search
+  body: none
+  auth: bearer
+}
+
+query {
+  hasComments: true
+}
+
+auth:bearer {
+  token: {{JWT_TOKEN}}
+}
