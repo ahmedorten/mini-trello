@@ -1,0 +1,24 @@
+version: 1
+project:
+  name: Customer Support CRM
+  primaryLanguage: typescript
+  projectRoots:
+    - .
+tracker:
+  type: jira
+  workspace: azm-crm-workshop.atlassian.net
+naming:
+  includeTrackerId: true
+  globalSequence: true
+agents: []
+planner:
+  enabled: true
+  provider: anthropic
+  mode: auto
+  budget:
+    maxFileReads: 25
+    maxContextBytes: 50000
+    maxDurationSeconds: 180
+  cache:
+    enabled: true
+  maxOutputTokens: 16384
