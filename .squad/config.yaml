@@ -1,12 +1,13 @@
 version: 1
 project:
-  name: Customer Support CRM
+  name: CRM Customer Support
   primaryLanguage: typescript
   projectRoots:
     - .
 tracker:
-  type: jira
-  workspace: azm-crm-workshop.atlassian.net
+  type: azure
+  workspace: AhmedOrten
+  project: CRM_Customer_Support
 naming:
   includeTrackerId: true
   globalSequence: true

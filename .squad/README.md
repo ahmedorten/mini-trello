@@ -2,9 +2,9 @@
 
 This folder is managed by [squad-kit](https://github.com/AzmSquad/squad-kit).
 
-- **Project:** Customer Support CRM
+- **Project:** CRM Customer Support
 - **Language:** typescript
-- **Tracker:** jira
+- **Tracker:** azure
 
 ## Workflow
 
