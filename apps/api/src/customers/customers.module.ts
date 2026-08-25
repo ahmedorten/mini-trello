@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
-import { AttachmentStorageService } from './attachment-storage.service';
+import { AttachmentStorageService } from '../common/attachment-storage.service';
 import { AttachmentsController } from './attachments.controller';
 import { AttachmentsService } from './attachments.service';
 import { CustomersController } from './customers.controller';

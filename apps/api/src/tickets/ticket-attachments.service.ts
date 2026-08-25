@@ -12,14 +12,15 @@ import { PrismaService } from '../prisma/prisma.service';
 import type { EnvironmentVariables } from '../config/env.validation';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { ALLOWED_MIME_TYPES, AttachmentStorageService } from '../common/attachment-storage.service';
-import { ARCHIVE_PERMISSION, CustomersService, USER_REF_SELECT } from './customers.service';
-import { AttachmentResponseDto } from './dto/attachment.dto';
+import { USER_REF_SELECT } from '../customers/customers.service';
+import { TICKET_MANAGE_PERMISSION, TicketsService } from './tickets.service';
+import { TicketAttachmentResponseDto } from './dto/ticket-attachment.dto';
 
-export const MAX_ATTACHMENTS_PER_CUSTOMER = 20;
+export const MAX_ATTACHMENTS_PER_TICKET = 20;
 
-const ATTACHMENT_SELECT = {
+const TICKET_ATTACHMENT_SELECT = {
   id: true,
-  customerId: true,
+  ticketId: true,
   fileName: true,
   mimeType: true,
   sizeBytes: true,
@@ -27,44 +28,44 @@ const ATTACHMENT_SELECT = {
   createdAt: true,
   uploadedById: true,
   uploadedBy: { select: USER_REF_SELECT },
-} satisfies Prisma.CustomerAttachmentSelect;
+} satisfies Prisma.TicketAttachmentSelect;
 
-type SelectedAttachment = Prisma.CustomerAttachmentGetPayload<{
-  select: typeof ATTACHMENT_SELECT;
+type SelectedTicketAttachment = Prisma.TicketAttachmentGetPayload<{
+  select: typeof TICKET_ATTACHMENT_SELECT;
 }>;
 
 @Injectable()
-export class AttachmentsService {
-  private readonly logger = new Logger(AttachmentsService.name);
+export class TicketAttachmentsService {
+  private readonly logger = new Logger(TicketAttachmentsService.name);
   private readonly maxUploadBytes: number;
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly customersService: CustomersService,
+    private readonly ticketsService: TicketsService,
     private readonly storage: AttachmentStorageService,
     configService: ConfigService<EnvironmentVariables, true>,
   ) {
     this.maxUploadBytes = configService.get('MAX_UPLOAD_BYTES', { infer: true });
   }
 
-  async list(customerId: string): Promise<AttachmentResponseDto[]> {
-    await this.customersService.assertExists(customerId);
+  async list(ticketId: string): Promise<TicketAttachmentResponseDto[]> {
+    await this.ticketsService.assertExists(ticketId);
 
-    const attachments = await this.prisma.customerAttachment.findMany({
-      where: { customerId },
-      select: ATTACHMENT_SELECT,
+    const attachments = await this.prisma.ticketAttachment.findMany({
+      where: { ticketId },
+      select: TICKET_ATTACHMENT_SELECT,
       orderBy: { createdAt: 'desc' },
     });
 
-    return attachments.map((attachment) => AttachmentsService.toResponse(attachment));
+    return attachments.map((attachment) => TicketAttachmentsService.toResponse(attachment));
   }
 
   async create(
-    customerId: string,
+    ticketId: string,
     file: Express.Multer.File,
     caller: AuthenticatedUser,
-  ): Promise<AttachmentResponseDto> {
-    await this.customersService.assertExists(customerId);
+  ): Promise<TicketAttachmentResponseDto> {
+    await this.ticketsService.assertExists(ticketId);
 
     if (!file) {
       throw new BadRequestException('A file is required under the field name "file".');
@@ -80,36 +81,36 @@ export class AttachmentsService {
       );
     }
 
-    const count = await this.prisma.customerAttachment.count({ where: { customerId } });
+    const count = await this.prisma.ticketAttachment.count({ where: { ticketId } });
 
-    if (count >= MAX_ATTACHMENTS_PER_CUSTOMER) {
+    if (count >= MAX_ATTACHMENTS_PER_TICKET) {
       throw new BadRequestException(
-        `A customer may hold at most ${MAX_ATTACHMENTS_PER_CUSTOMER} attachments.`,
+        `A ticket may hold at most ${MAX_ATTACHMENTS_PER_TICKET} attachments.`,
       );
     }
 
-    const stored = await this.storage.save('customers', customerId, file.buffer, file.mimetype);
+    const stored = await this.storage.save('tickets', ticketId, file.buffer, file.mimetype);
 
     try {
-      const created = await this.prisma.customerAttachment.create({
+      const created = await this.prisma.ticketAttachment.create({
         data: {
-          customerId,
+          ticketId,
           uploadedById: caller.id,
-          fileName: AttachmentsService.sanitiseFileName(file.originalname),
+          fileName: TicketAttachmentsService.sanitiseFileName(file.originalname),
           storageKey: stored.storageKey,
           mimeType: file.mimetype,
           sizeBytes: stored.sizeBytes,
           checksumSha256: stored.checksumSha256,
         },
-        select: ATTACHMENT_SELECT,
+        select: TICKET_ATTACHMENT_SELECT,
       });
 
       this.logger.log(
-        { actorId: caller.id, customerId, attachmentId: created.id, sizeBytes: created.sizeBytes },
-        'Attachment uploaded',
+        { actorId: caller.id, ticketId, attachmentId: created.id, sizeBytes: created.sizeBytes },
+        'Ticket attachment uploaded',
       );
 
-      return AttachmentsService.toResponse(created);
+      return TicketAttachmentsService.toResponse(created);
     } catch (error) {
       // The write-bytes-first ordering needs this one compensating action: the
       // insert failed, so the file just written would otherwise be orphaned.
@@ -118,9 +119,9 @@ export class AttachmentsService {
     }
   }
 
-  async remove(customerId: string, id: string, caller: AuthenticatedUser): Promise<void> {
-    const attachment = await this.prisma.customerAttachment.findFirst({
-      where: { id, customerId },
+  async remove(ticketId: string, id: string, caller: AuthenticatedUser): Promise<void> {
+    const attachment = await this.prisma.ticketAttachment.findFirst({
+      where: { id, ticketId },
       select: { id: true, storageKey: true, uploadedById: true },
     });
 
@@ -128,9 +129,12 @@ export class AttachmentsService {
       throw new NotFoundException('Attachment not found.');
     }
 
-    if (attachment.uploadedById !== caller.id && !caller.permissions.includes(ARCHIVE_PERMISSION)) {
+    if (
+      attachment.uploadedById !== caller.id &&
+      !caller.permissions.includes(TICKET_MANAGE_PERMISSION)
+    ) {
       throw new ForbiddenException(
-        'Only the uploader or a customer administrator can delete an attachment.',
+        'Only the uploader or a ticket administrator can delete an attachment.',
       );
     }
 
@@ -138,26 +142,29 @@ export class AttachmentsService {
     // which is invisible and harmless. The reverse would leave a row pointing
     // at nothing — a broken download. The row is already gone by the time we
     // touch the filesystem, so a failure here is logged, never thrown.
-    await this.prisma.customerAttachment.delete({ where: { id } });
+    await this.prisma.ticketAttachment.delete({ where: { id } });
 
     try {
       await this.storage.remove(attachment.storageKey);
     } catch (error) {
       this.logger.warn(
-        { err: error, customerId, attachmentId: id },
+        { err: error, ticketId, attachmentId: id },
         'Attachment row deleted but file removal failed',
       );
     }
 
-    this.logger.log({ actorId: caller.id, customerId, attachmentId: id }, 'Attachment deleted');
+    this.logger.log(
+      { actorId: caller.id, ticketId, attachmentId: id },
+      'Ticket attachment deleted',
+    );
   }
 
   async getForDownload(
-    customerId: string,
+    ticketId: string,
     id: string,
   ): Promise<{ fileName: string; mimeType: string; sizeBytes: number; storageKey: string }> {
-    const attachment = await this.prisma.customerAttachment.findFirst({
-      where: { id, customerId },
+    const attachment = await this.prisma.ticketAttachment.findFirst({
+      where: { id, ticketId },
       select: { fileName: true, mimeType: true, sizeBytes: true, storageKey: true },
     });
 
@@ -182,10 +189,10 @@ export class AttachmentsService {
     return (cleaned.length > 0 ? cleaned : 'attachment').slice(0, 200);
   }
 
-  private static toResponse(attachment: SelectedAttachment): AttachmentResponseDto {
+  private static toResponse(attachment: SelectedTicketAttachment): TicketAttachmentResponseDto {
     return {
       id: attachment.id,
-      customerId: attachment.customerId,
+      ticketId: attachment.ticketId,
       fileName: attachment.fileName,
       mimeType: attachment.mimeType,
       sizeBytes: attachment.sizeBytes,

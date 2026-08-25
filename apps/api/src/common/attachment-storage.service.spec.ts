@@ -37,27 +37,38 @@ describe('AttachmentStorageService', () => {
     const customerId = randomUUID();
     const buffer = Buffer.from('%PDF-1.4 test content');
 
-    const result = await service.save(customerId, buffer, 'application/pdf');
+    const result = await service.save('customers', customerId, buffer, 'application/pdf');
 
     expect(result.storageKey).toMatch(new RegExp(`^customers/${customerId}/[0-9a-f-]{36}\\.pdf$`));
+  });
+
+  it('writes a file under a tickets/ prefix when folder is "tickets"', async () => {
+    const ticketId = randomUUID();
+    const buffer = Buffer.from('%PDF-1.4 ticket content');
+
+    const result = await service.save('tickets', ticketId, buffer, 'application/pdf');
+
+    expect(result.storageKey).toMatch(new RegExp(`^tickets/${ticketId}/[0-9a-f-]{36}\\.pdf$`));
   });
 
   it('returns a checksumSha256 equal to an independently computed SHA-256', async () => {
     const buffer = Buffer.from('checksum me');
 
-    const result = await service.save(randomUUID(), buffer, 'application/pdf');
+    const result = await service.save('customers', randomUUID(), buffer, 'application/pdf');
 
     const expected = createHash('sha256').update(buffer).digest('hex');
     expect(result.checksumSha256).toBe(expected);
   });
 
   it('throws for a mime type absent from the whitelist', async () => {
-    await expect(service.save(randomUUID(), Buffer.from('x'), 'image/svg+xml')).rejects.toThrow();
+    await expect(
+      service.save('customers', randomUUID(), Buffer.from('x'), 'image/svg+xml'),
+    ).rejects.toThrow();
   });
 
   it('creates the nested directory when it does not exist', async () => {
     const customerId = randomUUID();
-    const result = await service.save(customerId, Buffer.from('nested'), 'text/plain');
+    const result = await service.save('customers', customerId, Buffer.from('nested'), 'text/plain');
 
     const bytes = await readFile(join(baseDir, result.storageKey));
     expect(bytes.toString()).toBe('nested');
@@ -65,7 +76,12 @@ describe('AttachmentStorageService', () => {
 
   it('remove deletes the file, and calling it twice does not throw', async () => {
     const customerId = randomUUID();
-    const result = await service.save(customerId, Buffer.from('to be removed'), 'text/plain');
+    const result = await service.save(
+      'customers',
+      customerId,
+      Buffer.from('to be removed'),
+      'text/plain',
+    );
 
     await expect(service.remove(result.storageKey)).resolves.toBeUndefined();
     await expect(service.remove(result.storageKey)).resolves.toBeUndefined();
@@ -73,7 +89,7 @@ describe('AttachmentStorageService', () => {
 
   it('createStream on a saved key yields the original bytes', async () => {
     const buffer = Buffer.from('stream me back');
-    const result = await service.save(randomUUID(), buffer, 'text/plain');
+    const result = await service.save('customers', randomUUID(), buffer, 'text/plain');
 
     const stream = service.createStream(result.storageKey);
     const read = await streamToBuffer(stream);

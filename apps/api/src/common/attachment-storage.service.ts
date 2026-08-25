@@ -6,6 +6,8 @@ import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common
 import { ConfigService } from '@nestjs/config';
 import { EnvironmentVariables } from '../config/env.validation';
 
+export type AttachmentFolder = 'customers' | 'tickets';
+
 /** Mime type → the extension we give the stored file. The client's filename is
  *  NEVER consulted for this: it is attacker-controlled. A type absent from this
  *  map is rejected before any byte is written. SVG is excluded deliberately —
@@ -41,7 +43,12 @@ export class AttachmentStorageService {
     this.baseDir = resolve(configService.get('UPLOAD_DIR', { infer: true }));
   }
 
-  async save(customerId: string, buffer: Buffer, mimeType: string): Promise<StoredFile> {
+  async save(
+    folder: AttachmentFolder,
+    scopeId: string,
+    buffer: Buffer,
+    mimeType: string,
+  ): Promise<StoredFile> {
     const extension = ALLOWED_MIME_TYPES[mimeType];
 
     if (!extension) {
@@ -50,7 +57,7 @@ export class AttachmentStorageService {
       throw new InternalServerErrorException('Unsupported attachment type.');
     }
 
-    const storageKey = `customers/${customerId}/${randomUUID()}${extension}`;
+    const storageKey = `${folder}/${scopeId}/${randomUUID()}${extension}`;
     const absolute = this.resolveKey(storageKey);
 
     await mkdir(dirname(absolute), { recursive: true });

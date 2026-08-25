@@ -50,6 +50,9 @@ async function bootstrap(): Promise<void> {
     .addTag('customer-attachments', 'Files attached to a customer profile')
     .addTag('customer-interactions', 'Logged calls, emails, chats, and meetings')
     .addTag('tickets', 'Customer support tickets')
+    .addTag('ticket-comments', 'Comments on a ticket')
+    .addTag('ticket-attachments', 'Files attached to a ticket')
+    .addTag('ticket-history', "A ticket's audit trail of tracked field changes")
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT', in: 'header' }, 'bearer')
     .addCookieAuth('crm_refresh')
     .build();

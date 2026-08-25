@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { BadRequestException } from '@nestjs/common';
 import { CustomerStatus } from '@prisma/client';
 import { AttachmentsService, MAX_ATTACHMENTS_PER_CUSTOMER } from './attachments.service';
-import { AttachmentStorageService } from './attachment-storage.service';
+import { AttachmentStorageService } from '../common/attachment-storage.service';
 import { CustomersService } from './customers.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
