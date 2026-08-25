@@ -61,6 +61,30 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Edit customer', permissions: ['customers:write'] },
   },
   {
+    path: '/tickets',
+    name: 'tickets',
+    component: () => import('@/views/TicketsView.vue'),
+    meta: { title: 'Tickets', permissions: ['tickets:read'] },
+  },
+  {
+    path: '/tickets/new',
+    name: 'ticket-create',
+    component: () => import('@/views/TicketFormView.vue'),
+    meta: { title: 'New ticket', permissions: ['tickets:write'] },
+  },
+  {
+    path: '/tickets/:id',
+    name: 'ticket-detail',
+    component: () => import('@/views/TicketDetailView.vue'),
+    meta: { title: 'Ticket', permissions: ['tickets:read'] },
+  },
+  {
+    path: '/tickets/:id/edit',
+    name: 'ticket-edit',
+    component: () => import('@/views/TicketFormView.vue'),
+    meta: { title: 'Edit ticket', permissions: ['tickets:write'] },
+  },
+  {
     path: '/forbidden',
     name: 'forbidden',
     component: () => import('@/views/ForbiddenView.vue'),

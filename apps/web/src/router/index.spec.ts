@@ -98,6 +98,59 @@ describe('router', () => {
     expect(router.currentRoute.value.name).toBe('customer-create');
   });
 
+  it('resolves /tickets to the tickets route', () => {
+    expect(router.resolve('/tickets').name).toBe('tickets');
+  });
+
+  it('resolves /tickets/new to the ticket-create route, not ticket-detail', () => {
+    expect(router.resolve('/tickets/new').name).toBe('ticket-create');
+  });
+
+  it('resolves /tickets/abc to the ticket-detail route', () => {
+    const resolved = router.resolve('/tickets/abc');
+    expect(resolved.name).toBe('ticket-detail');
+    expect(resolved.params.id).toBe('abc');
+  });
+
+  it('resolves /tickets/abc/edit to the ticket-edit route', () => {
+    const resolved = router.resolve('/tickets/abc/edit');
+    expect(resolved.name).toBe('ticket-edit');
+    expect(resolved.params.id).toBe('abc');
+  });
+
+  it('redirects a signed-out visitor from /tickets to login with a redirect query', async () => {
+    mockAuth({ isAuthenticated: false });
+
+    await router.push('/tickets');
+
+    expect(router.currentRoute.value.name).toBe('login');
+    expect(router.currentRoute.value.query.redirect).toBe('/tickets');
+  });
+
+  it('redirects to forbidden when signed in without tickets:read', async () => {
+    mockAuth({ isAuthenticated: true, permissions: [] });
+
+    await router.push('/tickets');
+
+    expect(router.currentRoute.value.name).toBe('forbidden');
+  });
+
+  it('redirects to forbidden for /tickets/new when missing tickets:write', async () => {
+    mockAuth({ isAuthenticated: true, permissions: ['tickets:read'] });
+
+    await router.push('/tickets/new');
+
+    expect(router.currentRoute.value.name).toBe('forbidden');
+  });
+
+  it('allows /tickets/new when signed in with tickets:write', async () => {
+    mockAuth({ isAuthenticated: true, permissions: ['tickets:read', 'tickets:write'] });
+
+    await router.push('/tickets/new');
+
+    expect(router.currentRoute.value.name).toBe('ticket-create');
+  });
+
   it('resolves an unknown path to the not-found catch-all', () => {
     expect(router.resolve('/nope').name).toBe('not-found');
   });

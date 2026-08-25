@@ -144,6 +144,20 @@ export async function listCustomers(params: ListCustomersParams): Promise<Pagina
   return response.data;
 }
 
+export interface CustomerRefOption {
+  id: string;
+  name: string;
+  email: string | null;
+}
+
+/** A page-size-capped list for a <select>, not the paginated list UI.
+ *  Mirrors listAgents() in api/users.ts. */
+export async function listCustomerRefs(): Promise<CustomerRefOption[]> {
+  const { items } = await listCustomers({ pageSize: 100 });
+
+  return items.map((customer) => ({ id: customer.id, name: customer.name, email: customer.email }));
+}
+
 export async function getCustomer(id: string): Promise<Customer> {
   const response = await apiClient.get<Customer>(`/customers/${id}`);
 

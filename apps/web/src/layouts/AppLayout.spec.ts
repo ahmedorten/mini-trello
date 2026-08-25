@@ -121,6 +121,24 @@ describe('AppLayout', () => {
     expect(links.map((link) => link.text())).not.toContain('Customers');
   });
 
+  it('renders the Tickets link when signed in with tickets:read', async () => {
+    mockAuthStore({ isAuthenticated: true, permissions: ['tickets:read'] });
+    const { wrapper } = await mountLayout();
+
+    const nav = wrapper.find('nav[aria-label="Main navigation"]');
+    const links = nav.findAll('a');
+    expect(links.map((link) => link.text())).toContain('Tickets');
+  });
+
+  it('omits the Tickets link when signed in without tickets:read', async () => {
+    mockAuthStore({ isAuthenticated: true, permissions: [] });
+    const { wrapper } = await mountLayout();
+
+    const nav = wrapper.find('nav[aria-label="Main navigation"]');
+    const links = nav.findAll('a');
+    expect(links.map((link) => link.text())).not.toContain('Tickets');
+  });
+
   it('signs out via auth.logout and redirects to login', async () => {
     const store = mockAuthStore({ isAuthenticated: true });
     const { wrapper, router } = await mountLayout();
