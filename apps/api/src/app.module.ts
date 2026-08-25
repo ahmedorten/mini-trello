@@ -32,6 +32,9 @@ import { validateEnv } from './config/env.validation';
             'req.headers.cookie',
             'req.headers["x-api-key"]',
             'res.headers["set-cookie"]',
+            // pino-http does not serialize the request body by default; this is
+            // defensive so a future custom serializer cannot leak a password.
+            'req.body.password',
           ],
           censor: '[redacted]',
         },
