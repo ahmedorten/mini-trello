@@ -68,6 +68,18 @@ export class EnvironmentVariables {
   @Min(1)
   @Max(90)
   JWT_REFRESH_TTL_DAYS: number = 7;
+
+  /** Directory attachment bytes are written to. Relative paths resolve from the
+   *  API's working directory (apps/api). Must be writable by the process. */
+  @IsString()
+  @IsNotEmpty()
+  UPLOAD_DIR: string = './var/uploads';
+
+  /** Hard ceiling on a single upload, in bytes. Default 10 MiB. */
+  @IsInt()
+  @Min(1024)
+  @Max(52_428_800)
+  MAX_UPLOAD_BYTES: number = 10_485_760;
 }
 
 export function validateEnv(config: Record<string, unknown>): EnvironmentVariables {

@@ -17,7 +17,11 @@ import { CustomerResponseDto, PaginatedCustomersDto } from './dto/customer-respo
 
 export const ARCHIVE_PERMISSION = 'customers:archive';
 
-const USER_REF_SELECT = { id: true, fullName: true, email: true } satisfies Prisma.UserSelect;
+export const USER_REF_SELECT = {
+  id: true,
+  fullName: true,
+  email: true,
+} satisfies Prisma.UserSelect;
 
 /** The ONLY projection used for customer responses. Explicit, so a column added
  *  to the model later cannot leak into an API response by accident. */
@@ -268,7 +272,9 @@ export class CustomersService {
     return CustomersService.toResponse(updated);
   }
 
-  private async assertExists(id: string): Promise<{ id: string; status: CustomerStatus }> {
+  /** Public: reused by the notes/attachments/interactions services so every
+   *  nested route 404s on an unknown customer before touching a child table. */
+  async assertExists(id: string): Promise<{ id: string; status: CustomerStatus }> {
     const exists = await this.prisma.customer.findUnique({
       where: { id },
       select: { id: true, status: true },

@@ -46,6 +46,9 @@ async function bootstrap(): Promise<void> {
     .addTag('health', 'Service and dependency health')
     .addTag('auth', 'Authentication and session management')
     .addTag('customers', 'Customer profiles and their history')
+    .addTag('customer-notes', 'Notes attached to a customer profile')
+    .addTag('customer-attachments', 'Files attached to a customer profile')
+    .addTag('customer-interactions', 'Logged calls, emails, chats, and meetings')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT', in: 'header' }, 'bearer')
     .addCookieAuth('crm_refresh')
     .build();
