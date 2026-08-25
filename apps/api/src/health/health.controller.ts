@@ -1,5 +1,11 @@
-import { Controller, Get } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
+import type { Response } from 'express';
+import {
+  ApiOkResponse,
+  ApiOperation,
+  ApiServiceUnavailableResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { HealthResponseDto } from './dto/health-response.dto';
 import { HealthService } from './health.service';
 
@@ -11,10 +17,16 @@ export class HealthController {
   @Get()
   @ApiOperation({
     summary: 'Service health check',
-    description: 'Returns process liveness. Extended with a database probe in Story 03.',
+    description: 'Reports process liveness and a PostgreSQL round-trip probe.',
   })
-  @ApiOkResponse({ type: HealthResponseDto })
-  check(): HealthResponseDto {
-    return this.healthService.check();
+  @ApiOkResponse({ type: HealthResponseDto, description: 'All dependencies healthy.' })
+  @ApiServiceUnavailableResponse({
+    type: HealthResponseDto,
+    description: 'The database probe failed.',
+  })
+  async check(@Res({ passthrough: true }) res: Response): Promise<HealthResponseDto> {
+    const result = await this.healthService.check();
+    res.status(result.status === 'ok' ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE);
+    return result;
   }
 }

@@ -60,6 +60,10 @@ describe('Health Endpoint (e2e)', () => {
         expect(res.body.environment).toBeDefined();
         expect(res.body.uptimeSeconds).toBeDefined();
         expect(res.body.timestamp).toBeDefined();
+        expect(res.body.database).toBeDefined();
+        expect(res.body.database.status).toBe('up');
+        expect(typeof res.body.database.latencyMs).toBe('number');
+        expect(res.body.database.message).toBeUndefined();
       });
   });
 
@@ -87,6 +91,20 @@ describe('Health Endpoint (e2e)', () => {
       .expect((res) => {
         expect(res.body.paths).toBeDefined();
         expect(res.body.paths['/api/health']).toBeDefined();
+      });
+  });
+
+  it('GET /api/docs-json exposes DatabaseHealthDto schema', () => {
+    return request(app.getHttpServer())
+      .get('/api/docs-json')
+      .expect(200)
+      .expect((res) => {
+        expect(res.body.components).toBeDefined();
+        expect(res.body.components.schemas).toBeDefined();
+        expect(res.body.components.schemas.DatabaseHealthDto).toBeDefined();
+        expect(res.body.components.schemas.DatabaseHealthDto.properties).toBeDefined();
+        expect(res.body.components.schemas.DatabaseHealthDto.properties.status).toBeDefined();
+        expect(res.body.components.schemas.DatabaseHealthDto.properties.latencyMs).toBeDefined();
       });
   });
 });

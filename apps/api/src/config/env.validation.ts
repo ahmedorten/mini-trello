@@ -1,5 +1,15 @@
 import { plainToInstance } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min, validateSync } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  Min,
+  validateSync,
+} from 'class-validator';
 
 export enum NodeEnv {
   Development = 'development',
@@ -32,6 +42,13 @@ export class EnvironmentVariables {
 
   @IsEnum(LogLevel)
   LOG_LEVEL: LogLevel = LogLevel.Info;
+
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^postgres(ql)?:\/\/.+/, {
+    message: 'DATABASE_URL must be a postgresql:// connection string',
+  })
+  DATABASE_URL!: string;
 }
 
 export function validateEnv(config: Record<string, unknown>): EnvironmentVariables {

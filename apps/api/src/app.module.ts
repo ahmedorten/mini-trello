@@ -3,6 +3,7 @@ import { IncomingMessage } from 'node:http';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
+import { PrismaModule } from './prisma/prisma.module';
 import { HealthModule } from './health/health.module';
 import { validateEnv } from './config/env.validation';
 
@@ -42,6 +43,7 @@ import { validateEnv } from './config/env.validation';
             : undefined,
       } as any,
     }),
+    PrismaModule,
     HealthModule,
   ],
 })
