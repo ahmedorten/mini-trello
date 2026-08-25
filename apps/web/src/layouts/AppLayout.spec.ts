@@ -15,6 +15,7 @@ const routes = [
   { path: '/', name: 'dashboard', component: { template: '<div>Dashboard</div>' } },
   { path: '/system-status', name: 'system-status', component: { template: '<div>Status</div>' } },
   { path: '/users', name: 'users', component: { template: '<div>Users</div>' } },
+  { path: '/customers', name: 'customers', component: { template: '<div>Customers</div>' } },
   { path: '/login', name: 'login', component: { template: '<div>Login</div>' } },
 ];
 
@@ -100,6 +101,24 @@ describe('AppLayout', () => {
     const nav = wrapper.find('nav[aria-label="Main navigation"]');
     const links = nav.findAll('a');
     expect(links.map((link) => link.text())).not.toContain('Users');
+  });
+
+  it('renders the Customers link when signed in with customers:read', async () => {
+    mockAuthStore({ isAuthenticated: true, permissions: ['customers:read'] });
+    const { wrapper } = await mountLayout();
+
+    const nav = wrapper.find('nav[aria-label="Main navigation"]');
+    const links = nav.findAll('a');
+    expect(links.map((link) => link.text())).toContain('Customers');
+  });
+
+  it('omits the Customers link when signed in without customers:read', async () => {
+    mockAuthStore({ isAuthenticated: true, permissions: [] });
+    const { wrapper } = await mountLayout();
+
+    const nav = wrapper.find('nav[aria-label="Main navigation"]');
+    const links = nav.findAll('a');
+    expect(links.map((link) => link.text())).not.toContain('Customers');
   });
 
   it('signs out via auth.logout and redirects to login', async () => {

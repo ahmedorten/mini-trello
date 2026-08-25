@@ -31,6 +31,7 @@ async function signOut(): Promise<void> {
         <RouterLink to="/" class="layout__link">Dashboard</RouterLink>
         <RouterLink to="/system-status" class="layout__link">System status</RouterLink>
         <RouterLink v-if="auth.can('users:read')" to="/users" class="layout__link">Users</RouterLink>
+        <RouterLink v-if="auth.can('customers:read')" to="/customers" class="layout__link">Customers</RouterLink>
       </nav>
 
       <main class="layout__main">

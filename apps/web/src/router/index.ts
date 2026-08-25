@@ -37,6 +37,30 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Users', permissions: ['users:read'] },
   },
   {
+    path: '/customers',
+    name: 'customers',
+    component: () => import('@/views/CustomersView.vue'),
+    meta: { title: 'Customers', permissions: ['customers:read'] },
+  },
+  {
+    path: '/customers/new',
+    name: 'customer-create',
+    component: () => import('@/views/CustomerFormView.vue'),
+    meta: { title: 'New customer', permissions: ['customers:write'] },
+  },
+  {
+    path: '/customers/:id',
+    name: 'customer-detail',
+    component: () => import('@/views/CustomerDetailView.vue'),
+    meta: { title: 'Customer', permissions: ['customers:read'] },
+  },
+  {
+    path: '/customers/:id/edit',
+    name: 'customer-edit',
+    component: () => import('@/views/CustomerFormView.vue'),
+    meta: { title: 'Edit customer', permissions: ['customers:write'] },
+  },
+  {
     path: '/forbidden',
     name: 'forbidden',
     component: () => import('@/views/ForbiddenView.vue'),

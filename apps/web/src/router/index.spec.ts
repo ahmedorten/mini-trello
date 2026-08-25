@@ -45,6 +45,59 @@ describe('router', () => {
     expect(router.resolve('/forbidden').name).toBe('forbidden');
   });
 
+  it('resolves /customers to the customers route', () => {
+    expect(router.resolve('/customers').name).toBe('customers');
+  });
+
+  it('resolves /customers/new to the customer-create route, not customer-detail', () => {
+    expect(router.resolve('/customers/new').name).toBe('customer-create');
+  });
+
+  it('resolves /customers/abc to the customer-detail route', () => {
+    const resolved = router.resolve('/customers/abc');
+    expect(resolved.name).toBe('customer-detail');
+    expect(resolved.params.id).toBe('abc');
+  });
+
+  it('resolves /customers/abc/edit to the customer-edit route', () => {
+    const resolved = router.resolve('/customers/abc/edit');
+    expect(resolved.name).toBe('customer-edit');
+    expect(resolved.params.id).toBe('abc');
+  });
+
+  it('redirects a signed-out visitor from /customers to login with a redirect query', async () => {
+    mockAuth({ isAuthenticated: false });
+
+    await router.push('/customers');
+
+    expect(router.currentRoute.value.name).toBe('login');
+    expect(router.currentRoute.value.query.redirect).toBe('/customers');
+  });
+
+  it('redirects to forbidden when signed in without customers:read', async () => {
+    mockAuth({ isAuthenticated: true, permissions: [] });
+
+    await router.push('/customers');
+
+    expect(router.currentRoute.value.name).toBe('forbidden');
+  });
+
+  it('redirects to forbidden for /customers/new when missing customers:write', async () => {
+    mockAuth({ isAuthenticated: true, permissions: ['customers:read'] });
+
+    await router.push('/customers/new');
+
+    expect(router.currentRoute.value.name).toBe('forbidden');
+  });
+
+  it('allows /customers/new when signed in with customers:write', async () => {
+    mockAuth({ isAuthenticated: true, permissions: ['customers:read', 'customers:write'] });
+
+    await router.push('/customers/new');
+
+    expect(router.currentRoute.value.name).toBe('customer-create');
+  });
+
   it('resolves an unknown path to the not-found catch-all', () => {
     expect(router.resolve('/nope').name).toBe('not-found');
   });

@@ -116,3 +116,11 @@ export async function listDepartments(): Promise<OrgUnitRef[]> {
 
   return response.data;
 }
+
+/** Populates the assigned-agent picker on the customer form. A plain caller
+ *  without users:read gets a 403 here, which the customers store swallows. */
+export async function listAgents(): Promise<UserSummary[]> {
+  const result = await listUsers({ pageSize: 100 });
+
+  return result.items;
+}
