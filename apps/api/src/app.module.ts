@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { OrgModule } from './org/org.module';
 import { CustomersModule } from './customers/customers.module';
+import { TicketsModule } from './tickets/tickets.module';
 import { validateEnv } from './config/env.validation';
 
 @Module({
@@ -55,6 +56,7 @@ import { validateEnv } from './config/env.validation';
     UsersModule,
     OrgModule,
     CustomersModule,
+    TicketsModule,
     HealthModule,
   ],
 })
