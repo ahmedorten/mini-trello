@@ -49,6 +49,12 @@ const permissions: { key: string; description: string }[] = [
   { key: 'branches:read', description: 'View branches' },
   { key: 'branches:write', description: 'Create and update branches' },
   { key: 'reports:read', description: 'View reports and dashboards' },
+  { key: 'customers:read', description: 'View customers, their notes, attachments, and interactions' },
+  { key: 'customers:write', description: 'Create and update customers' },
+  { key: 'customers:archive', description: 'Archive and restore customers' },
+  { key: 'notes:write', description: 'Add, edit, and delete customer notes' },
+  { key: 'attachments:write', description: 'Upload and delete customer attachments' },
+  { key: 'interactions:write', description: 'Log customer interactions' },
 ];
 
 const roles: { key: string; name: string; description: string; permissions: string[] }[] = [
@@ -73,19 +79,44 @@ const roles: { key: string; name: string; description: string; permissions: stri
       'branches:read',
       'branches:write',
       'reports:read',
+      'customers:read',
+      'customers:write',
+      'customers:archive',
+      'notes:write',
+      'attachments:write',
+      'interactions:write',
     ],
   },
   {
     key: 'support-supervisor',
     name: 'Support Supervisor',
     description: 'Reads staff records and reports; cannot change accounts.',
-    permissions: ['users:read', 'roles:read', 'departments:read', 'branches:read', 'reports:read'],
+    permissions: [
+      'users:read',
+      'roles:read',
+      'departments:read',
+      'branches:read',
+      'reports:read',
+      'customers:read',
+      'customers:write',
+      'notes:write',
+      'attachments:write',
+      'interactions:write',
+    ],
   },
   {
     key: 'support-agent',
     name: 'Support Agent',
     description: 'Front-line agent. Sees organisation structure only.',
-    permissions: ['departments:read', 'branches:read'],
+    permissions: [
+      'departments:read',
+      'branches:read',
+      'customers:read',
+      'customers:write',
+      'notes:write',
+      'attachments:write',
+      'interactions:write',
+    ],
   },
   {
     key: 'customer',
@@ -97,7 +128,7 @@ const roles: { key: string; name: string; description: string; permissions: stri
     key: 'reporting-user',
     name: 'Reporting User',
     description: 'Read-only analytics access.',
-    permissions: ['reports:read', 'departments:read', 'branches:read'],
+    permissions: ['reports:read', 'departments:read', 'branches:read', 'customers:read'],
   },
 ];
 

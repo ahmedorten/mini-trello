@@ -40,9 +40,29 @@ describe('Seed (e2e)', () => {
     expect(countAfter).toBe(3);
   });
 
-  it('creates exactly 10 permissions', async () => {
+  it('creates exactly 16 permissions', async () => {
     const count = await prisma.permission.count();
-    expect(count).toBe(10);
+    expect(count).toBe(16);
+  });
+
+  it('contains all six new customer-management permission keys', async () => {
+    const keys = await prisma.permission.findMany({
+      where: {
+        key: {
+          in: [
+            'customers:read',
+            'customers:write',
+            'customers:archive',
+            'notes:write',
+            'attachments:write',
+            'interactions:write',
+          ],
+        },
+      },
+      select: { key: true },
+    });
+
+    expect(keys).toHaveLength(6);
   });
 
   it('creates exactly 6 roles matching the named slugs', async () => {
@@ -78,9 +98,63 @@ describe('Seed (e2e)', () => {
       }),
     ]);
 
-    expect(systemAdministrator._count.permissions).toBe(10);
+    expect(systemAdministrator._count.permissions).toBe(16);
     expect(customer._count.permissions).toBe(0);
-    expect(supportAgent._count.permissions).toBe(2);
+    expect(supportAgent._count.permissions).toBe(7);
+  });
+
+  it('holds system-administrator to all 16 permission keys', async () => {
+    const role = await prisma.role.findUniqueOrThrow({
+      where: { key: 'system-administrator' },
+      include: { permissions: { include: { permission: { select: { key: true } } } } },
+    });
+
+    const keys = role.permissions.map((rp) => rp.permission.key).sort();
+    const allKeys = (await prisma.permission.findMany({ select: { key: true } }))
+      .map((p) => p.key)
+      .sort();
+
+    expect(keys).toEqual(allKeys);
+  });
+
+  it('grants support-agent the five customer keys without customers:archive', async () => {
+    const role = await prisma.role.findUniqueOrThrow({
+      where: { key: 'support-agent' },
+      include: { permissions: { include: { permission: { select: { key: true } } } } },
+    });
+
+    const keys = role.permissions.map((rp) => rp.permission.key);
+
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        'customers:read',
+        'customers:write',
+        'notes:write',
+        'attachments:write',
+        'interactions:write',
+      ]),
+    );
+    expect(keys).not.toContain('customers:archive');
+  });
+
+  it('does not grant support-supervisor customers:archive', async () => {
+    const role = await prisma.role.findUniqueOrThrow({
+      where: { key: 'support-supervisor' },
+      include: { permissions: { include: { permission: { select: { key: true } } } } },
+    });
+
+    const keys = role.permissions.map((rp) => rp.permission.key);
+
+    expect(keys).not.toContain('customers:archive');
+  });
+
+  it('still leaves customer holding zero permissions', async () => {
+    const role = await prisma.role.findUniqueOrThrow({
+      where: { key: 'customer' },
+      include: { _count: { select: { permissions: true } } },
+    });
+
+    expect(role._count.permissions).toBe(0);
   });
 
   it('creates 2 departments and 1 branch', async () => {
@@ -122,6 +196,7 @@ describe('Seed (e2e)', () => {
       branchesBefore,
       usersBefore,
       refreshTokensBefore,
+      customersBefore,
     ] = await Promise.all([
       prisma.permission.count(),
       prisma.role.count(),
@@ -129,6 +204,7 @@ describe('Seed (e2e)', () => {
       prisma.branch.count(),
       prisma.user.count(),
       prisma.refreshToken.count(),
+      prisma.customer.count(),
     ]);
 
     await expect(main()).resolves.not.toThrow();
@@ -142,5 +218,7 @@ describe('Seed (e2e)', () => {
     await expect(prisma.branch.count()).resolves.toBe(branchesBefore);
     await expect(prisma.user.count()).resolves.toBe(usersBefore);
     await expect(prisma.refreshToken.count()).resolves.toBe(refreshTokensBefore);
+    // The seed invents no customer rows in any environment (see Product rules).
+    await expect(prisma.customer.count()).resolves.toBe(customersBefore);
   });
 });

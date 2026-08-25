@@ -7,6 +7,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// Lifecycle of a customer relationship. A closed set that drives service
+/// branching and UI badges, so it is an enum rather than a seeded lookup row —
+/// unlike Role, which an administrator edits at runtime.
+enum CustomerStatus {
+  PROSPECT
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum CustomerType {
+  INDIVIDUAL
+  COMPANY
+}
+
+enum InteractionChannel {
+  PHONE
+  EMAIL
+  CHAT
+  MEETING
+  OTHER
+}
+
+enum InteractionDirection {
+  INBOUND
+  OUTBOUND
+}
+
 /// Key/value application settings. Deliberately infrastructure-only:
 /// it exercises the migration and seed pipeline without committing to a
 /// domain model. CRM domain entities arrive in a later work item.
@@ -72,6 +100,12 @@ model User {
   branch        Branch?        @relation(fields: [branchId], references: [id], onDelete: SetNull)
   roles         UserRole[]
   refreshTokens RefreshToken[]
+
+  assignedCustomers    Customer[]            @relation("CustomerAssignedAgent")
+  createdCustomers     Customer[]            @relation("CustomerCreatedBy")
+  customerNotes        CustomerNote[]        @relation("CustomerNoteAuthor")
+  customerAttachments  CustomerAttachment[]  @relation("CustomerAttachmentUploader")
+  customerInteractions CustomerInteraction[] @relation("CustomerInteractionAuthor")
 
   @@index([departmentId])
   @@index([branchId])
@@ -149,4 +183,98 @@ model RefreshToken {
   @@index([userId])
   @@index([expiresAt])
   @@map("refresh_tokens")
+}
+
+/// A person or organisation the support desk serves. Never deleted: the
+/// terminal state is `status: ARCHIVED`, so notes, attachments, and interaction
+/// history survive. `email` is stored lower-cased — normalise at every write.
+model Customer {
+  id              String         @id @default(uuid()) @db.Uuid
+  type            CustomerType   @default(INDIVIDUAL)
+  name            String
+  companyName     String?        @map("company_name")
+  email           String?        @unique
+  phone           String?
+  alternatePhone  String?        @map("alternate_phone")
+  addressLine1    String?        @map("address_line1")
+  addressLine2    String?        @map("address_line2")
+  city            String?
+  country         String?
+  postalCode      String?        @map("postal_code")
+  status          CustomerStatus @default(PROSPECT)
+  assignedAgentId String?        @map("assigned_agent_id") @db.Uuid
+  createdById     String?        @map("created_by_id") @db.Uuid
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  assignedAgent User? @relation("CustomerAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: SetNull)
+  createdBy     User? @relation("CustomerCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  notes        CustomerNote[]
+  attachments  CustomerAttachment[]
+  interactions CustomerInteraction[]
+
+  @@index([status])
+  @@index([assignedAgentId])
+  @@index([name])
+  @@map("customers")
+}
+
+/// Free-text note against a customer. Append-only by convention: only the
+/// author may edit or delete their own note (enforced in Story 11's service).
+model CustomerNote {
+  id         String   @id @default(uuid()) @db.Uuid
+  customerId String   @map("customer_id") @db.Uuid
+  authorId   String   @map("author_id") @db.Uuid
+  body       String
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  author   User     @relation("CustomerNoteAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([customerId, createdAt])
+  @@map("customer_notes")
+}
+
+/// Metadata for a file stored on disk. `storageKey` is a path this application
+/// GENERATED (uuid + a mime-derived extension) — never the client's filename,
+/// which is kept in `fileName` for display only. Story 11 owns the bytes.
+model CustomerAttachment {
+  id             String   @id @default(uuid()) @db.Uuid
+  customerId     String   @map("customer_id") @db.Uuid
+  uploadedById   String   @map("uploaded_by_id") @db.Uuid
+  fileName       String   @map("file_name")
+  storageKey     String   @unique @map("storage_key")
+  mimeType       String   @map("mime_type")
+  sizeBytes      Int      @map("size_bytes")
+  checksumSha256 String   @map("checksum_sha256")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  uploadedBy User     @relation("CustomerAttachmentUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([customerId, createdAt])
+  @@map("customer_attachments")
+}
+
+/// A logged touchpoint with a customer. `occurredAt` is when it HAPPENED, which
+/// the agent supplies; `createdAt` is when it was recorded. They differ whenever
+/// a call is logged after the fact, and the timeline sorts on the former.
+model CustomerInteraction {
+  id          String               @id @default(uuid()) @db.Uuid
+  customerId  String               @map("customer_id") @db.Uuid
+  createdById String               @map("created_by_id") @db.Uuid
+  channel     InteractionChannel
+  direction   InteractionDirection
+  subject     String
+  body        String?
+  occurredAt  DateTime             @map("occurred_at")
+  createdAt   DateTime             @default(now()) @map("created_at")
+
+  customer  Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  createdBy User     @relation("CustomerInteractionAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([customerId, occurredAt])
+  @@map("customer_interactions")
 }

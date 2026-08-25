@@ -324,7 +324,7 @@ describe('Auth (e2e)', () => {
   });
 
   describe('GET /api/roles', () => {
-    it('as the administrator → 200 with 6 roles; system-administrator lists all ten permissions sorted; customer lists []', async () => {
+    it('as the administrator → 200 with 6 roles; system-administrator lists all sixteen permissions sorted; customer lists []', async () => {
       const res = await request(app.getHttpServer())
         .get('/api/roles')
         .set('Authorization', `Bearer ${await login()}`)
@@ -339,10 +339,16 @@ describe('Auth (e2e)', () => {
         [...systemAdministrator.permissions].sort(),
       );
       expect(systemAdministrator.permissions).toEqual([
+        'attachments:write',
         'branches:read',
         'branches:write',
+        'customers:archive',
+        'customers:read',
+        'customers:write',
         'departments:read',
         'departments:write',
+        'interactions:write',
+        'notes:write',
         'reports:read',
         'roles:assign',
         'roles:read',
