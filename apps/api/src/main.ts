@@ -45,6 +45,7 @@ async function bootstrap(): Promise<void> {
     .setVersion('0.1.0')
     .addTag('health', 'Service and dependency health')
     .addTag('auth', 'Authentication and session management')
+    .addTag('customers', 'Customer profiles and their history')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT', in: 'header' }, 'bearer')
     .addCookieAuth('crm_refresh')
     .build();
