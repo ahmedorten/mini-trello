@@ -19,3 +19,134 @@ model AppSetting {
 
   @@map("app_settings")
 }
+
+/// Organisational unit a staff user belongs to. Nullable on User: a system
+/// administrator belongs to no department.
+model Department {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  name      String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users User[]
+
+  @@map("departments")
+}
+
+/// Physical or logical location. Independent of Department by design: a branch
+/// hosts staff from several departments.
+model Branch {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  name      String
+  city      String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users User[]
+
+  @@map("branches")
+}
+
+/// An authenticatable account. `email` is stored lower-cased — normalise at
+/// every write (see Edge Cases); PostgreSQL unique indexes are case-sensitive.
+model User {
+  id                  String    @id @default(uuid()) @db.Uuid
+  email               String    @unique
+  fullName            String    @map("full_name")
+  passwordHash        String    @map("password_hash")
+  isActive            Boolean   @default(true) @map("is_active")
+  mustChangePassword  Boolean   @default(false) @map("must_change_password")
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until")
+  lastLoginAt         DateTime? @map("last_login_at")
+  departmentId        String?   @map("department_id") @db.Uuid
+  branchId            String?   @map("branch_id") @db.Uuid
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  department    Department?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  branch        Branch?        @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  roles         UserRole[]
+  refreshTokens RefreshToken[]
+
+  @@index([departmentId])
+  @@index([branchId])
+  @@index([isActive])
+  @@map("users")
+}
+
+/// A named bundle of permissions. Seeded rows, not a Prisma enum — see
+/// "Product rules" above.
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  name        String
+  description String?
+  isSystem    Boolean  @default(true) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@map("roles")
+}
+
+/// A single `resource:action` capability. Granted to roles only, never to users.
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  description String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId     String   @map("user_id") @db.Uuid
+  roleId     String   @map("role_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+/// Opaque refresh tokens, stored as a SHA-256 digest. A leaked database dump
+/// must not yield usable tokens. Story 06 owns the rotation logic.
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  userAgent String?   @map("user_agent")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
