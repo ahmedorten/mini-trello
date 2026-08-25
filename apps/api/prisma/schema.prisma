@@ -35,6 +35,31 @@ enum InteractionDirection {
   OUTBOUND
 }
 
+enum TicketCategory {
+  GENERAL
+  TECHNICAL
+  BILLING
+  ACCOUNT
+  FEATURE_REQUEST
+  BUG_REPORT
+  OTHER
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  ON_HOLD
+  RESOLVED
+  CLOSED
+}
+
 /// Key/value application settings. Deliberately infrastructure-only:
 /// it exercises the migration and seed pipeline without committing to a
 /// domain model. CRM domain entities arrive in a later work item.
@@ -106,6 +131,12 @@ model User {
   customerNotes        CustomerNote[]        @relation("CustomerNoteAuthor")
   customerAttachments  CustomerAttachment[]  @relation("CustomerAttachmentUploader")
   customerInteractions CustomerInteraction[] @relation("CustomerInteractionAuthor")
+
+  assignedTickets      Ticket[]           @relation("TicketAssignedAgent")
+  createdTickets       Ticket[]           @relation("TicketCreatedBy")
+  ticketComments       TicketComment[]    @relation("TicketCommentAuthor")
+  ticketAttachments    TicketAttachment[] @relation("TicketAttachmentUploader")
+  ticketHistoryEntries TicketHistory[]    @relation("TicketHistoryActor")
 
   @@index([departmentId])
   @@index([branchId])
@@ -213,6 +244,7 @@ model Customer {
   notes        CustomerNote[]
   attachments  CustomerAttachment[]
   interactions CustomerInteraction[]
+  tickets      Ticket[]
 
   @@index([status])
   @@index([assignedAgentId])
@@ -277,4 +309,98 @@ model CustomerInteraction {
 
   @@index([customerId, occurredAt])
   @@map("customer_interactions")
+}
+
+/// A customer support request, tracked from creation through resolution.
+/// Never deleted — CLOSED is a normal status, not terminal, so a ticket can be
+/// reopened by setting status back to OPEN. Always linked to a Customer.
+/// Unlike CustomerInteraction (a logged touchpoint), a Ticket is a trackable
+/// unit of work with its own lifecycle, category, priority, and assignment.
+model Ticket {
+  id              String         @id @default(uuid()) @db.Uuid
+  customerId      String         @map("customer_id") @db.Uuid
+  subject         String
+  description     String
+  category        TicketCategory @default(GENERAL)
+  priority        TicketPriority @default(MEDIUM)
+  status          TicketStatus   @default(OPEN)
+  assignedAgentId String?        @map("assigned_agent_id") @db.Uuid
+  createdById     String?        @map("created_by_id") @db.Uuid
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  assignedAgent User?    @relation("TicketAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: SetNull)
+  createdBy     User?    @relation("TicketCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  comments    TicketComment[]
+  attachments TicketAttachment[]
+  history     TicketHistory[]
+
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([assignedAgentId])
+  @@index([customerId])
+  @@map("tickets")
+}
+
+/// Free-text comment on a ticket. Only the author may edit; the author or a
+/// tickets:manage holder may delete — mirrors CustomerNote's authorship rule.
+model TicketComment {
+  id        String   @id @default(uuid()) @db.Uuid
+  ticketId  String   @map("ticket_id") @db.Uuid
+  authorId  String   @map("author_id") @db.Uuid
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User   @relation("TicketCommentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, createdAt])
+  @@map("ticket_comments")
+}
+
+/// Metadata for a file stored on disk under the ticket-management feature's
+/// storage tree. `storageKey` is generated (uuid + a mime-derived extension) —
+/// never the client's filename, which is kept in `fileName` for display only.
+/// Story 15 owns the bytes via the generalised AttachmentStorageService.
+model TicketAttachment {
+  id             String   @id @default(uuid()) @db.Uuid
+  ticketId       String   @map("ticket_id") @db.Uuid
+  uploadedById   String   @map("uploaded_by_id") @db.Uuid
+  fileName       String   @map("file_name")
+  storageKey     String   @unique @map("storage_key")
+  mimeType       String   @map("mime_type")
+  sizeBytes      Int      @map("size_bytes")
+  checksumSha256 String   @map("checksum_sha256")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  ticket     Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  uploadedBy User   @relation("TicketAttachmentUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, createdAt])
+  @@map("ticket_attachments")
+}
+
+/// A system-generated audit entry, one row per tracked field change (status,
+/// priority, category, or assignedAgentId). Never created directly by a
+/// client — Story 14's TicketsService writes these as a side effect of the
+/// mutation that caused them. Read-only via the API: no create/update/delete
+/// route exists on TicketHistoryController.
+model TicketHistory {
+  id          String   @id @default(uuid()) @db.Uuid
+  ticketId    String   @map("ticket_id") @db.Uuid
+  changedById String   @map("changed_by_id") @db.Uuid
+  field       String
+  oldValue    String?  @map("old_value")
+  newValue    String?  @map("new_value")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  ticket    Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  changedBy User   @relation("TicketHistoryActor", fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, createdAt])
+  @@map("ticket_history")
 }

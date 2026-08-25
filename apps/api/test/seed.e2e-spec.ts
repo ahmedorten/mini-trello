@@ -40,12 +40,12 @@ describe('Seed (e2e)', () => {
     expect(countAfter).toBe(3);
   });
 
-  it('creates exactly 16 permissions', async () => {
+  it('creates exactly 21 permissions', async () => {
     const count = await prisma.permission.count();
-    expect(count).toBe(16);
+    expect(count).toBe(21);
   });
 
-  it('contains all six new customer-management permission keys', async () => {
+  it('contains all six customer-management permission keys', async () => {
     const keys = await prisma.permission.findMany({
       where: {
         key: {
@@ -63,6 +63,19 @@ describe('Seed (e2e)', () => {
     });
 
     expect(keys).toHaveLength(6);
+  });
+
+  it('contains all five new ticket-management permission keys', async () => {
+    const keys = await prisma.permission.findMany({
+      where: {
+        key: {
+          in: ['tickets:read', 'tickets:write', 'tickets:manage', 'ticket-comments:write', 'ticket-attachments:write'],
+        },
+      },
+      select: { key: true },
+    });
+
+    expect(keys).toHaveLength(5);
   });
 
   it('creates exactly 6 roles matching the named slugs', async () => {
@@ -98,12 +111,12 @@ describe('Seed (e2e)', () => {
       }),
     ]);
 
-    expect(systemAdministrator._count.permissions).toBe(16);
+    expect(systemAdministrator._count.permissions).toBe(21);
     expect(customer._count.permissions).toBe(0);
-    expect(supportAgent._count.permissions).toBe(7);
+    expect(supportAgent._count.permissions).toBe(11);
   });
 
-  it('holds system-administrator to all 16 permission keys', async () => {
+  it('holds system-administrator to all 21 permission keys', async () => {
     const role = await prisma.role.findUniqueOrThrow({
       where: { key: 'system-administrator' },
       include: { permissions: { include: { permission: { select: { key: true } } } } },
@@ -155,6 +168,40 @@ describe('Seed (e2e)', () => {
     });
 
     expect(role._count.permissions).toBe(0);
+  });
+
+  it('grants support-agent and support-supervisor the four ticket keys but not tickets:manage', async () => {
+    const [supportAgent, supportSupervisor] = await Promise.all([
+      prisma.role.findUniqueOrThrow({
+        where: { key: 'support-agent' },
+        include: { permissions: { include: { permission: { select: { key: true } } } } },
+      }),
+      prisma.role.findUniqueOrThrow({
+        where: { key: 'support-supervisor' },
+        include: { permissions: { include: { permission: { select: { key: true } } } } },
+      }),
+    ]);
+
+    for (const role of [supportAgent, supportSupervisor]) {
+      const keys = role.permissions.map((rp) => rp.permission.key);
+
+      expect(keys).toEqual(
+        expect.arrayContaining(['tickets:read', 'tickets:write', 'ticket-comments:write', 'ticket-attachments:write']),
+      );
+      expect(keys).not.toContain('tickets:manage');
+    }
+  });
+
+  it('holds reporting-user to tickets:read only, not tickets:write', async () => {
+    const role = await prisma.role.findUniqueOrThrow({
+      where: { key: 'reporting-user' },
+      include: { permissions: { include: { permission: { select: { key: true } } } } },
+    });
+
+    const keys = role.permissions.map((rp) => rp.permission.key);
+
+    expect(keys).toContain('tickets:read');
+    expect(keys).not.toContain('tickets:write');
   });
 
   it('creates 2 departments and 1 branch', async () => {

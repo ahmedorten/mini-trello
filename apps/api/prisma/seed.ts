@@ -55,6 +55,11 @@ const permissions: { key: string; description: string }[] = [
   { key: 'notes:write', description: 'Add, edit, and delete customer notes' },
   { key: 'attachments:write', description: 'Upload and delete customer attachments' },
   { key: 'interactions:write', description: 'Log customer interactions' },
+  { key: 'tickets:read', description: 'View tickets, their comments, attachments, and history' },
+  { key: 'tickets:write', description: 'Create and update tickets, including status' },
+  { key: 'tickets:manage', description: 'Delete a ticket comment or attachment created by someone else' },
+  { key: 'ticket-comments:write', description: 'Add, edit, and delete ticket comments' },
+  { key: 'ticket-attachments:write', description: 'Upload and delete ticket attachments' },
 ];
 
 const roles: { key: string; name: string; description: string; permissions: string[] }[] = [
@@ -85,6 +90,11 @@ const roles: { key: string; name: string; description: string; permissions: stri
       'notes:write',
       'attachments:write',
       'interactions:write',
+      'tickets:read',
+      'tickets:write',
+      'tickets:manage',
+      'ticket-comments:write',
+      'ticket-attachments:write',
     ],
   },
   {
@@ -102,6 +112,10 @@ const roles: { key: string; name: string; description: string; permissions: stri
       'notes:write',
       'attachments:write',
       'interactions:write',
+      'tickets:read',
+      'tickets:write',
+      'ticket-comments:write',
+      'ticket-attachments:write',
     ],
   },
   {
@@ -116,6 +130,10 @@ const roles: { key: string; name: string; description: string; permissions: stri
       'notes:write',
       'attachments:write',
       'interactions:write',
+      'tickets:read',
+      'tickets:write',
+      'ticket-comments:write',
+      'ticket-attachments:write',
     ],
   },
   {
@@ -128,7 +146,7 @@ const roles: { key: string; name: string; description: string; permissions: stri
     key: 'reporting-user',
     name: 'Reporting User',
     description: 'Read-only analytics access.',
-    permissions: ['reports:read', 'departments:read', 'branches:read', 'customers:read'],
+    permissions: ['reports:read', 'departments:read', 'branches:read', 'customers:read', 'tickets:read'],
   },
 ];
 
