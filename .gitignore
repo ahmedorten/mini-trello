@@ -6,3 +6,27 @@
 .squad/.last-copy-prompt.md
 .squad/runs/
 # End squad-kit block
+
+# --- Project ---
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Environment — commit only the .example files
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

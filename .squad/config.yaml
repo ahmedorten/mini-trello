@@ -1,6 +1,6 @@
 version: 1
 project:
-  name: CRM Customer Support
+  name: Customer Support CRM
   primaryLanguage: typescript
   projectRoots:
     - .
@@ -23,3 +23,5 @@ planner:
   cache:
     enabled: true
   maxOutputTokens: 16384
+  auth:
+    anthropic: subscription
