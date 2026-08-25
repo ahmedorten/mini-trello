@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { EnvironmentVariables } from '../config/env.validation';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { PermissionsGuard } from './guards/permissions.guard';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 
@@ -27,6 +28,7 @@ import { TokenService } from './token.service';
     PasswordService,
     TokenService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
   exports: [AuthService, PasswordService, TokenService],
 })

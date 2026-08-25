@@ -90,6 +90,18 @@ describe('Auth (e2e)', () => {
     await app.close();
   });
 
+  async function login(
+    email: string = ADMIN_EMAIL,
+    password: string = ADMIN_PASSWORD,
+  ): Promise<string> {
+    const res = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email, password })
+      .expect(200);
+
+    return res.body.accessToken as string;
+  }
+
   describe('POST /api/auth/login', () => {
     it('returns 200, tokens, and a well-formed refresh cookie for correct credentials', async () => {
       const res = await request(app.getHttpServer())
@@ -308,6 +320,67 @@ describe('Auth (e2e)', () => {
         .get('/api/auth/me')
         .set('Authorization', `Bearer ${forged}`)
         .expect(401);
+    });
+  });
+
+  describe('GET /api/roles', () => {
+    it('as the administrator → 200 with 6 roles; system-administrator lists all ten permissions sorted; customer lists []', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/roles')
+        .set('Authorization', `Bearer ${await login()}`)
+        .expect(200);
+
+      expect(res.body).toHaveLength(6);
+
+      const systemAdministrator = res.body.find(
+        (role: { key: string }) => role.key === 'system-administrator',
+      );
+      expect(systemAdministrator.permissions).toEqual(
+        [...systemAdministrator.permissions].sort(),
+      );
+      expect(systemAdministrator.permissions).toEqual([
+        'branches:read',
+        'branches:write',
+        'departments:read',
+        'departments:write',
+        'reports:read',
+        'roles:assign',
+        'roles:read',
+        'users:deactivate',
+        'users:read',
+        'users:write',
+      ]);
+
+      const customer = res.body.find((role: { key: string }) => role.key === 'customer');
+      expect(customer.permissions).toEqual([]);
+    });
+
+    it('as a support-agent → 403', async () => {
+      const email = `e2e.roles.${Date.now()}@e2e.local`;
+      const adminToken = await login();
+
+      await request(app.getHttpServer())
+        .post('/api/users')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          email,
+          fullName: 'E2E Roles Agent',
+          password: 'Passw0rd1234',
+          roleKeys: ['support-agent'],
+        })
+        .expect(201);
+
+      const agentLogin = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email, password: 'Passw0rd1234' })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .get('/api/roles')
+        .set('Authorization', `Bearer ${agentLogin.body.accessToken}`)
+        .expect(403);
+
+      await prisma.user.deleteMany({ where: { email } });
     });
   });
 

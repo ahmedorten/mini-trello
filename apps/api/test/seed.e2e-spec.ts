@@ -108,18 +108,28 @@ describe('Seed (e2e)', () => {
     expect(userRole?.role.key).toBe('system-administrator');
   });
 
-  it('leaves counts and the admin password hash unchanged, and refresh_tokens empty, on a second run', async () => {
+  it('leaves counts and the admin password hash unchanged, and refresh_tokens untouched, on a second run', async () => {
     const email = (process.env.BOOTSTRAP_ADMIN_EMAIL ?? 'admin@crm.local').trim().toLowerCase();
     const before = await prisma.user.findUniqueOrThrow({ where: { email } });
 
-    const [permissionsBefore, rolesBefore, departmentsBefore, branchesBefore, usersBefore] =
-      await Promise.all([
-        prisma.permission.count(),
-        prisma.role.count(),
-        prisma.department.count(),
-        prisma.branch.count(),
-        prisma.user.count(),
-      ]);
+    // refreshTokensBefore, not a hard-coded 0: other e2e suites sharing this
+    // database log in and mint refresh tokens of their own. This test only
+    // asserts that re-running the seed itself leaves that table untouched.
+    const [
+      permissionsBefore,
+      rolesBefore,
+      departmentsBefore,
+      branchesBefore,
+      usersBefore,
+      refreshTokensBefore,
+    ] = await Promise.all([
+      prisma.permission.count(),
+      prisma.role.count(),
+      prisma.department.count(),
+      prisma.branch.count(),
+      prisma.user.count(),
+      prisma.refreshToken.count(),
+    ]);
 
     await expect(main()).resolves.not.toThrow();
 
@@ -131,6 +141,6 @@ describe('Seed (e2e)', () => {
     await expect(prisma.department.count()).resolves.toBe(departmentsBefore);
     await expect(prisma.branch.count()).resolves.toBe(branchesBefore);
     await expect(prisma.user.count()).resolves.toBe(usersBefore);
-    await expect(prisma.refreshToken.count()).resolves.toBe(0);
+    await expect(prisma.refreshToken.count()).resolves.toBe(refreshTokensBefore);
   });
 });
