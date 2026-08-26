@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useHealthStore } from '@/stores/health';
 
 const health = useHealthStore();
+const { t, d, n } = useI18n();
 
 onMounted(() => {
   void health.load();
@@ -12,52 +14,56 @@ onMounted(() => {
 <template>
   <section>
     <header class="status__header">
-      <h1>System status</h1>
+      <h1>{{ t('systemStatus.title') }}</h1>
       <button type="button" :disabled="health.isLoading" @click="health.load()">
-        {{ health.isLoading ? 'Checking…' : 'Refresh' }}
+        {{ health.isLoading ? t('systemStatus.checking') : t('systemStatus.refresh') }}
       </button>
     </header>
 
-    <p v-if="health.isLoading && !health.data">Checking API…</p>
+    <p v-if="health.isLoading && !health.data">{{ t('systemStatus.checkingApi') }}</p>
 
     <div v-else-if="health.error" role="alert" class="status__error">
-      <strong>Cannot reach the API.</strong>
+      <strong>{{ t('systemStatus.cannotReach') }}</strong>
       <p>{{ health.error }}</p>
-      <p>Start it with <code>npm run dev:api</code> from the repository root.</p>
+      <p>
+        <i18n-t keypath="systemStatus.startHint" tag="span" scope="global">
+          <template #command><code>npm run dev:api</code></template>
+        </i18n-t>
+      </p>
     </div>
 
     <dl v-else-if="health.data" class="status__list">
-      <dt>API</dt>
+      <dt>{{ t('systemStatus.api') }}</dt>
       <dd :class="health.isHealthy ? 'status__ok' : 'status__error-text'">
-        {{ health.isHealthy ? 'Healthy' : 'Degraded' }}
+        {{ health.isHealthy ? t('systemStatus.healthy') : t('systemStatus.degraded') }}
       </dd>
 
-      <dt>Service</dt>
+      <dt>{{ t('systemStatus.service') }}</dt>
       <dd>{{ health.data.service }}</dd>
 
-      <dt>Version</dt>
+      <dt>{{ t('systemStatus.version') }}</dt>
       <dd>{{ health.data.version }}</dd>
 
-      <dt>Environment</dt>
+      <dt>{{ t('systemStatus.environment') }}</dt>
       <dd>{{ health.data.environment }}</dd>
 
-      <dt>Uptime</dt>
-      <dd>{{ health.data.uptimeSeconds }} s</dd>
+      <dt>{{ t('systemStatus.uptime') }}</dt>
+      <dd>{{ t('systemStatus.uptimeValue', { seconds: n(health.data.uptimeSeconds, 'decimal') }) }}</dd>
 
-      <dt>Database</dt>
+      <dt>{{ t('systemStatus.database') }}</dt>
       <dd :class="health.isDatabaseUp ? 'status__ok' : 'status__error-text'">
-        {{ health.isDatabaseUp ? 'Connected' : 'Unavailable' }}
-        ({{ health.data.database.latencyMs }} ms)
+        {{ health.isDatabaseUp ? t('systemStatus.connected') : t('systemStatus.unavailable') }}
+        ({{ n(health.data.database.latencyMs, 'decimal') }} ms)
       </dd>
 
       <template v-if="health.data.database.message">
-        <dt>Database error</dt>
+        <dt>{{ t('systemStatus.databaseError') }}</dt>
         <dd>{{ health.data.database.message }}</dd>
       </template>
     </dl>
 
     <p v-if="health.lastCheckedAt" class="status__meta">
-      Last checked {{ new Date(health.lastCheckedAt).toLocaleTimeString() }}
+      {{ t('systemStatus.lastChecked', { time: d(new Date(health.lastCheckedAt), 'long') }) }}
     </p>
   </section>
 </template>
@@ -67,28 +73,28 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1.5rem;
+  margin-block-end: var(--space-5);
 }
 
 .status__error {
-  padding: 1rem;
+  padding: var(--space-4);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--color-error) 10%, white);
+  background: var(--color-error-soft);
   border: 1px solid var(--color-error);
 }
 
 .status__list {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 0.5rem 1rem;
+  gap: var(--space-2) var(--space-4);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  padding: 1.5rem;
+  padding: var(--space-5);
 }
 
 .status__list dt {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-muted);
 }
 
@@ -98,17 +104,17 @@ onMounted(() => {
 
 .status__ok {
   color: var(--color-ok);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .status__error-text {
   color: var(--color-error);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .status__meta {
-  margin-top: 1rem;
+  margin-block-start: var(--space-4);
   color: var(--color-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--font-size-md);
 }
 </style>

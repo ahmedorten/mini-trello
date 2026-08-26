@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createMemoryHistory, createRouter } from 'vue-router';
 import { reactive } from 'vue';
+import { createPinia } from 'pinia';
 import TicketDetailView from './TicketDetailView.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useTicketsStore } from '@/stores/tickets';
@@ -85,7 +86,7 @@ async function mountView() {
   router.push('/tickets/t-1');
   await router.isReady();
 
-  const wrapper = mount(TicketDetailView, { global: { plugins: [router] } });
+  const wrapper = mount(TicketDetailView, { global: { plugins: [router, createPinia()] } });
   await wrapper.vm.$nextTick();
 
   return wrapper;

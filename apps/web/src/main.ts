@@ -3,6 +3,8 @@ import { createPinia } from 'pinia';
 import router from './router';
 import AppLayout from './layouts/AppLayout.vue';
 import { useAuthStore } from './stores/auth';
+import { useLocaleStore } from './stores/locale';
+import { i18n } from './i18n';
 import './assets/main.css';
 
 void (async () => {
@@ -16,6 +18,13 @@ void (async () => {
   // calls useAuthStore(). Installing the router first makes the very first
   // navigation run before any of that exists.
   const auth = useAuthStore(pinia);
+
+  // Locale before the router so the first rendered frame already has the right
+  // dir and language — and before `restore()`, so the sign-in screen a
+  // signed-out user lands on is already localised.
+  useLocaleStore(pinia);
+
+  app.use(i18n);
 
   // Trade the httpOnly cookie for an access token before anything renders, so a
   // reloaded page does not flash the sign-in screen. Never throws.

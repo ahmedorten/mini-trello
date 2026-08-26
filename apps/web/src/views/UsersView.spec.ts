@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { reactive } from 'vue';
+import { createPinia } from 'pinia';
 import UsersView from './UsersView.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useUsersStore } from '@/stores/users';
@@ -95,7 +96,7 @@ describe('UsersView', () => {
     mockAuth(['users:read']);
     mockUsers({ items: [makeUser()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
 
-    const wrapper = mount(UsersView);
+    const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
     const row = wrapper.find('tbody tr');
 
     expect(row.text()).toContain('Nour Hassan');
@@ -107,7 +108,7 @@ describe('UsersView', () => {
     mockAuth(['users:read']);
     mockUsers({ items: [] });
 
-    const wrapper = mount(UsersView);
+    const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
 
     expect(wrapper.text()).toContain('No users match these filters.');
     expect(wrapper.find('table').exists()).toBe(false);
@@ -117,7 +118,7 @@ describe('UsersView', () => {
     mockAuth(['users:read']);
     mockUsers({ items: [], error: 'Cannot reach the API.' });
 
-    const wrapper = mount(UsersView);
+    const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
 
     expect(wrapper.find('[role="alert"]').text()).toBe('Cannot reach the API.');
     expect(wrapper.find('table').exists()).toBe(false);
@@ -130,7 +131,7 @@ describe('UsersView', () => {
       meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
     });
 
-    const wrapper = mount(UsersView);
+    const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
     const buttons = wrapper.findAll('.users__pagination button');
 
     expect(buttons[0].text()).toBe('Previous');
@@ -143,7 +144,7 @@ describe('UsersView', () => {
     mockAuth(['users:read']);
     const store = mockUsers({ items: [makeUser()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
 
-    const wrapper = mount(UsersView);
+    const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
     await wrapper.find('.users__filters select').setValue('support-agent');
 
     expect(store.setRoleFilter).toHaveBeenCalledWith('support-agent');
@@ -153,7 +154,7 @@ describe('UsersView', () => {
     mockAuth(['users:read']);
     mockUsers({ items: [makeUser()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
 
-    const wrapper = mount(UsersView);
+    const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
     const actions = wrapper.find('.users__actions');
 
     expect(actions.findAll('button')).toHaveLength(0);
@@ -163,7 +164,7 @@ describe('UsersView', () => {
     mockAuth(['users:read', 'users:write', 'roles:assign', 'users:deactivate'], 'someone-else');
     mockUsers({ items: [makeUser()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
 
-    const wrapper = mount(UsersView);
+    const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
     const labels = wrapper.find('.users__actions').findAll('button').map((b) => b.text());
 
     expect(labels).toEqual(['Edit', 'Roles', 'Deactivate', 'Reset password']);
@@ -173,7 +174,7 @@ describe('UsersView', () => {
     mockAuth(['users:read', 'users:deactivate'], 'u-1');
     mockUsers({ items: [makeUser({ id: 'u-1' })], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
 
-    const wrapper = mount(UsersView);
+    const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
     const labels = wrapper.find('.users__actions').findAll('button').map((b) => b.text());
 
     expect(labels).not.toContain('Deactivate');
@@ -183,7 +184,7 @@ describe('UsersView', () => {
     mockAuth(['users:read', 'users:write'], 'self', false);
     mockUsers({ items: [makeUser()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
 
-    const wrapper = mount(UsersView);
+    const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
     const createButton = wrapper.findAll('button').find((b) => b.text() === 'Create user')!;
     await createButton.trigger('click');
 
@@ -196,7 +197,7 @@ describe('UsersView', () => {
     mockAuth(['users:read', 'users:write'], 'self', true);
     mockUsers({ items: [makeUser()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
 
-    const wrapper = mount(UsersView);
+    const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
     const createButton = wrapper.findAll('button').find((b) => b.text() === 'Create user')!;
     await createButton.trigger('click');
 
@@ -209,7 +210,7 @@ describe('UsersView', () => {
     const store = mockUsers({ items: [makeUser()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
 
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    const wrapper = mount(UsersView);
+    const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
     const deactivateButton = wrapper
       .find('.users__actions')
       .findAll('button')

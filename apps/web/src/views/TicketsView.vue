@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useTicketsStore } from '@/stores/tickets';
 import {
@@ -11,21 +12,14 @@ import {
   type TicketPriority,
   type TicketStatus,
 } from '@/api/tickets';
+import AppStateBlock from '@/components/AppStateBlock.vue';
+import AppBadge from '@/components/AppBadge.vue';
+import AppPagination from '@/components/AppPagination.vue';
+import AppIcon from '@/components/AppIcon.vue';
 
 const auth = useAuthStore();
 const tickets = useTicketsStore();
-
-function categoryLabel(category: TicketCategory): string {
-  return category.charAt(0) + category.slice(1).toLowerCase().replace(/_/g, ' ');
-}
-
-function priorityLabel(priority: TicketPriority): string {
-  return priority.charAt(0) + priority.slice(1).toLowerCase();
-}
-
-function statusLabel(status: TicketStatus): string {
-  return status.charAt(0) + status.slice(1).toLowerCase().replace(/_/g, ' ');
-}
+const { t } = useI18n();
 
 // --- filters -------------------------------------------------------------
 
@@ -60,16 +54,8 @@ function onStatusFilterChange(event: Event): void {
   tickets.setStatusFilter((event.target as HTMLSelectElement).value as TicketStatus | '');
 }
 
-function previousPage(): void {
-  if (tickets.meta && tickets.filters.page > 1) {
-    tickets.setPage(tickets.filters.page - 1);
-  }
-}
-
-function nextPage(): void {
-  if (tickets.meta && tickets.filters.page < tickets.meta.totalPages) {
-    tickets.setPage(tickets.filters.page + 1);
-  }
+function onPageChange(page: number): void {
+  tickets.setPage(page);
 }
 
 onMounted(() => {
@@ -80,71 +66,75 @@ onMounted(() => {
 <template>
   <section>
     <header class="tickets__header">
-      <h1>Tickets</h1>
+      <h1>{{ t('ticket.list.title') }}</h1>
       <RouterLink v-if="auth.can('tickets:write')" to="/tickets/new" class="tickets__create">
-        New ticket
+        <AppIcon name="plus" :size="16" />
+        {{ t('ticket.list.newTicket') }}
       </RouterLink>
     </header>
 
     <form class="tickets__filters" @submit.prevent>
       <label>
-        Search
-        <input v-model="searchTerm" type="search" placeholder="Subject or description">
+        {{ t('common.search') }}
+        <input v-model="searchTerm" type="search" :placeholder="t('ticket.list.searchPlaceholder')">
       </label>
 
       <label>
-        Category
+        {{ t('ticket.field.category') }}
         <select @change="onCategoryFilterChange">
-          <option value="">All categories</option>
+          <option value="">{{ t('ticket.list.allCategories') }}</option>
           <option v-for="category in TICKET_CATEGORIES" :key="category" :value="category">
-            {{ categoryLabel(category) }}
+            {{ t(`ticket.category.${category}`) }}
           </option>
         </select>
       </label>
 
       <label>
-        Priority
+        {{ t('ticket.field.priority') }}
         <select @change="onPriorityFilterChange">
-          <option value="">All priorities</option>
+          <option value="">{{ t('ticket.list.allPriorities') }}</option>
           <option v-for="priority in TICKET_PRIORITIES" :key="priority" :value="priority">
-            {{ priorityLabel(priority) }}
+            {{ t(`ticket.priority.${priority}`) }}
           </option>
         </select>
       </label>
 
       <label>
-        Status
+        {{ t('ticket.field.status') }}
         <select @change="onStatusFilterChange">
-          <option value="">All statuses</option>
+          <option value="">{{ t('ticket.list.allStatuses') }}</option>
           <option v-for="status in TICKET_STATUSES" :key="status" :value="status">
-            {{ statusLabel(status) }}
+            {{ t(`ticket.status.${status}`) }}
           </option>
         </select>
       </label>
     </form>
 
-    <p v-if="tickets.isLoading && !tickets.items.length">Loading tickets…</p>
+    <AppStateBlock v-if="tickets.isLoading && !tickets.items.length" variant="loading" :message="t('ticket.list.loading')" />
 
-    <div v-else-if="tickets.error && !tickets.items.length" role="alert" class="tickets__error">
-      {{ tickets.error }}
-    </div>
+    <AppStateBlock
+      v-else-if="tickets.error && !tickets.items.length"
+      variant="error"
+      :message="tickets.error"
+      class="tickets__error"
+    />
 
-    <p v-else-if="!tickets.items.length">No tickets match these filters.</p>
+    <AppStateBlock v-else-if="!tickets.items.length" variant="empty" :message="t('ticket.list.empty')" />
 
     <template v-else>
       <div class="tickets__table-wrap">
         <table class="tickets__table">
-          <caption class="sr-only">Tickets</caption>
+          <caption class="sr-only">{{ t('ticket.list.caption') }}</caption>
           <thead>
             <tr>
-              <th scope="col">Subject</th>
-              <th scope="col">Customer</th>
-              <th scope="col">Category</th>
-              <th scope="col">Priority</th>
-              <th scope="col">Status</th>
-              <th scope="col">Assigned agent</th>
-              <th scope="col">Comments/Files</th>
-              <th scope="col">Actions</th>
+              <th scope="col">{{ t('ticket.field.subject') }}</th>
+              <th scope="col">{{ t('ticket.field.customer') }}</th>
+              <th scope="col">{{ t('ticket.field.category') }}</th>
+              <th scope="col">{{ t('ticket.field.priority') }}</th>
+              <th scope="col">{{ t('ticket.field.status') }}</th>
+              <th scope="col">{{ t('ticket.field.assignedAgent') }}</th>
+              <th scope="col">{{ t('ticket.field.commentsFiles') }}</th>
+              <th scope="col">{{ t('common.actions') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -155,29 +145,19 @@ onMounted(() => {
               <td>
                 <RouterLink :to="`/customers/${ticket.customer.id}`">{{ ticket.customer.name }}</RouterLink>
               </td>
-              <td>{{ categoryLabel(ticket.category) }}</td>
+              <td>{{ t(`ticket.category.${ticket.category}`) }}</td>
               <td>
-                <span
-                  class="tickets__badge"
-                  :class="'tickets__badge--priority-' + ticket.priority.toLowerCase()"
-                >
-                  {{ priorityLabel(ticket.priority) }}
-                </span>
+                <AppBadge :priority="ticket.priority" />
               </td>
               <td>
-                <span
-                  class="tickets__badge"
-                  :class="'tickets__badge--status-' + ticket.status.toLowerCase()"
-                >
-                  {{ statusLabel(ticket.status) }}
-                </span>
+                <AppBadge :status="ticket.status" />
               </td>
-              <td>{{ ticket.assignedAgent?.fullName ?? '—' }}</td>
+              <td>{{ ticket.assignedAgent?.fullName ?? t('common.unassigned') }}</td>
               <td>{{ ticket.counts.comments }} / {{ ticket.counts.attachments }}</td>
               <td class="tickets__actions">
-                <RouterLink :to="`/tickets/${ticket.id}`">View</RouterLink>
+                <RouterLink :to="`/tickets/${ticket.id}`">{{ t('common.view') }}</RouterLink>
                 <RouterLink v-if="auth.can('tickets:write')" :to="`/tickets/${ticket.id}/edit`">
-                  Edit
+                  {{ t('common.edit') }}
                 </RouterLink>
               </td>
             </tr>
@@ -186,19 +166,13 @@ onMounted(() => {
       </div>
 
       <div class="tickets__pagination">
-        <button type="button" :disabled="!tickets.meta || tickets.meta.page <= 1" @click="previousPage">
-          Previous
-        </button>
-        <span v-if="tickets.meta">
-          Page {{ tickets.meta.page }} of {{ tickets.meta.totalPages }} — {{ tickets.meta.total }} total
-        </span>
-        <button
-          type="button"
-          :disabled="!tickets.meta || tickets.meta.page >= tickets.meta.totalPages"
-          @click="nextPage"
-        >
-          Next
-        </button>
+        <AppPagination
+          v-if="tickets.meta"
+          :page="tickets.meta.page"
+          :total-pages="tickets.meta.totalPages"
+          :total="tickets.meta.total"
+          @change="onPageChange"
+        />
       </div>
     </template>
   </section>
@@ -209,40 +183,39 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1.5rem;
+  margin-block-end: var(--space-5);
 }
 
 .tickets__create {
-  padding: 0.5rem 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
   border-radius: var(--radius);
   background: var(--color-accent);
-  color: #ffffff;
+  color: var(--color-on-accent);
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
 }
 
 .tickets__filters {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-4);
+  margin-block-end: var(--space-5);
   flex-wrap: wrap;
 }
 
 .tickets__filters label {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 
 .tickets__error {
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--color-error) 10%, white);
-  border: 1px solid var(--color-error);
-  color: var(--color-error);
-  margin-bottom: 1rem;
+  margin-block-end: var(--space-4);
 }
 
 .tickets__table-wrap {
@@ -250,7 +223,7 @@ onMounted(() => {
 }
 
 .tickets__table {
-  width: 100%;
+  inline-size: 100%;
   border-collapse: collapse;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -259,68 +232,14 @@ onMounted(() => {
 
 .tickets__table th,
 .tickets__table td {
-  text-align: left;
-  padding: 0.6rem 0.75rem;
-  border-bottom: 1px solid var(--color-border);
+  text-align: start;
+  padding: var(--space-3) var(--space-3);
+  border-block-end: 1px solid var(--color-border);
 }
 
 .tickets__actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   flex-wrap: wrap;
-}
-
-.tickets__pagination {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.tickets__badge {
-  display: inline-block;
-  padding: 0.15rem 0.6rem;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  border: 1px solid var(--color-border);
-}
-
-.tickets__badge--priority-urgent,
-.tickets__badge--priority-high {
-  background: color-mix(in srgb, var(--color-accent) 12%, white);
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-}
-
-.tickets__badge--priority-medium,
-.tickets__badge--priority-low {
-  background: color-mix(in srgb, var(--color-text-muted) 12%, white);
-  border-color: var(--color-text-muted);
-  color: var(--color-text-muted);
-}
-
-.tickets__badge--status-open {
-  background: color-mix(in srgb, var(--color-accent) 12%, white);
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-}
-
-.tickets__badge--status-in_progress {
-  background: color-mix(in srgb, var(--color-ok) 12%, white);
-  border-color: var(--color-ok);
-  color: var(--color-ok);
-}
-
-.tickets__badge--status-on_hold {
-  background: color-mix(in srgb, var(--color-text-muted) 12%, white);
-  border-color: var(--color-text-muted);
-  color: var(--color-text-muted);
-}
-
-.tickets__badge--status-resolved,
-.tickets__badge--status-closed {
-  background: color-mix(in srgb, var(--color-border) 40%, white);
-  border-color: var(--color-border);
-  color: var(--color-text-muted);
 }
 </style>

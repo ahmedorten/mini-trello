@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '@/stores/auth';
 import { router } from './index';
+import { i18n } from '@/i18n';
 
 vi.mock('@/stores/auth', () => ({
   useAuthStore: vi.fn(),
@@ -188,11 +189,41 @@ describe('router', () => {
     expect(router.currentRoute.value.name).toBe('dashboard');
   });
 
-  it('updates document.title on navigation', async () => {
+  it('updates document.title from meta.titleKey on navigation', async () => {
     mockAuth({ isAuthenticated: true, permissions: ['users:read'] });
 
     await router.push('/users');
 
     expect(document.title).toBe('Users · Customer Support CRM');
+  });
+
+  it('falls back to the app name alone when a route has no titleKey', async () => {
+    mockAuth({ isAuthenticated: true, permissions: ['users:read'] });
+    router.addRoute({
+      path: '/no-title',
+      name: 'no-title',
+      component: { template: '<div />' },
+    });
+
+    await router.push('/no-title');
+
+    expect(document.title).toBe('Customer Support CRM');
+
+    router.removeRoute('no-title');
+  });
+
+  describe('locale-aware document.title', () => {
+    afterEach(() => {
+      i18n.global.locale.value = 'en';
+    });
+
+    it('renders the title in the active i18n locale on the next navigation', async () => {
+      mockAuth({ isAuthenticated: true, permissions: ['users:read'] });
+
+      i18n.global.locale.value = 'ar';
+      await router.push('/users');
+
+      expect(document.title).toBe('المستخدمون · نظام إدارة دعم العملاء');
+    });
   });
 });

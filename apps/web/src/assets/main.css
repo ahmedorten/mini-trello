@@ -1,4 +1,5 @@
 :root {
+  /* --- Original greys / surfaces / accent (kept, meaning unchanged) ------ */
   --color-bg: #f6f7f9;
   --color-surface: #ffffff;
   --color-border: #e2e5ea;
@@ -9,6 +10,88 @@
   --color-error: #c2331f;
   --radius: 8px;
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* --- Greys / surfaces (new) --------------------------------------------- */
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #eef0f3;
+  --color-border-strong: #c7cdd6;
+  --color-overlay: rgb(16 24 32 / 45%);
+
+  /* --- Semantic (new warning state + soft companions) --------------------- */
+  --color-warn: #b26a00;
+  --color-info: var(--color-accent);
+  /* Foreground for text/icons painted on a solid accent/error/ok background. */
+  --color-on-accent: #ffffff;
+  --color-ok-soft: #eaf7ef;
+  --color-warn-soft: #fdf3e3;
+  --color-error-soft: #fdf0ee;
+  --color-info-soft: #eaf0fd;
+  --color-accent-soft: #eaf0fd;
+
+  /* --- Status palette (TicketStatus) --------------------------------------- */
+  --color-status-open: #2b5cd9;
+  --color-status-open-soft: #eaf0fd;
+  --color-status-in-progress: #1c8a4a;
+  --color-status-in-progress-soft: #eaf7ef;
+  --color-status-on-hold: #b26a00;
+  --color-status-on-hold-soft: #fdf3e3;
+  --color-status-resolved: #64707f;
+  --color-status-resolved-soft: #eef0f3;
+  --color-status-closed: #3c4552;
+  --color-status-closed-soft: #e4e6ea;
+
+  /* --- Priority palette (TicketPriority) ----------------------------------- */
+  --color-priority-low: #64707f;
+  --color-priority-low-soft: #eef0f3;
+  --color-priority-medium: #2b5cd9;
+  --color-priority-medium-soft: #eaf0fd;
+  --color-priority-high: #b26a00;
+  --color-priority-high-soft: #fdf3e3;
+  --color-priority-urgent: #c2331f;
+  --color-priority-urgent-soft: #fdf0ee;
+
+  /* --- Spacing scale -------------------------------------------------------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 2.5rem;
+  --space-8: 3rem;
+
+  /* --- Radii ------------------------------------------------------------------ */
+  --radius-sm: 4px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  /* --- Elevation --------------------------------------------------------------- */
+  --shadow-1: 0 1px 2px rgb(16 24 32 / 8%);
+  --shadow-2: 0 4px 12px rgb(16 24 32 / 12%);
+  --shadow-overlay: 0 16px 40px rgb(16 24 32 / 24%);
+
+  /* --- Typography ---------------------------------------------------------------- */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.85rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.15rem;
+  --font-size-xl: 1.5rem;
+  --font-size-2xl: 2rem;
+  --line-height-tight: 1.2;
+  --line-height-body: 1.5;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  /* No webfont is downloaded — this only reorders the system stack for Arabic. */
+  --font-sans-ar: 'Segoe UI', Tahoma, 'Noto Sans Arabic', system-ui, sans-serif;
+
+  /* --- Focus -------------------------------------------------------------------- */
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--color-accent) 35%, transparent);
+
+  /* --- Layout ------------------------------------------------------------------- */
+  --sidebar-width: 15rem;
+  --sidebar-width-collapsed: 4rem;
+  --header-height: 3.5rem;
+  --content-max-width: 88rem;
 }
 
 * {
@@ -22,6 +105,18 @@ body {
   background: var(--color-bg);
 }
 
+/* The only direction-conditional rule in this file (Product rule 3): logical
+ * properties handle layout, but a font-family swap cannot be expressed any
+ * other way. */
+html[dir='rtl'] body {
+  font-family: var(--font-sans-ar);
+}
+
+*:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -32,4 +127,33 @@ body {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  inset-block-start: -100%;
+  inset-inline-start: var(--space-2);
+  z-index: 1000;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-2);
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  inset-block-start: var(--space-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

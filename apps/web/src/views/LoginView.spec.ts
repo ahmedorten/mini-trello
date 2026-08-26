@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createMemoryHistory, createRouter } from 'vue-router';
 import { reactive, ref } from 'vue';
+import { createPinia } from 'pinia';
 import LoginView from './LoginView.vue';
 import { useAuthStore } from '@/stores/auth';
 
@@ -39,7 +40,7 @@ async function mountView(initialPath = '/login') {
   router.push(initialPath);
   await router.isReady();
 
-  const wrapper = mount(LoginView, { global: { plugins: [router] } });
+  const wrapper = mount(LoginView, { global: { plugins: [router, createPinia()] } });
   await wrapper.vm.$nextTick();
 
   return { wrapper, router };

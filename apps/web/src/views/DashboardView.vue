@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 </script>
 
 <template>
   <section>
-    <h1>Dashboard</h1>
+    <h1>{{ t('dashboard.title') }}</h1>
+    <p>{{ t('dashboard.intro') }}</p>
     <p>
-      This bootstrap delivers the application shell — routing, layout, and a Pinia-backed API
-      client — with no CRM domain screens yet.
-    </p>
-    <p>
-      Visit the <RouterLink to="/system-status">System status</RouterLink> page to see the API and
-      database health, fetched live through the API client.
+      <i18n-t keypath="dashboard.systemStatusLink" tag="span" scope="global">
+        <template #link>
+          <RouterLink to="/system-status">{{ t('nav.systemStatus') }}</RouterLink>
+        </template>
+      </i18n-t>
     </p>
   </section>
 </template>

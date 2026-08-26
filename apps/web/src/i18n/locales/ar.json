@@ -1,0 +1,342 @@
+{
+  "app": {
+    "name": "نظام إدارة دعم العملاء"
+  },
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "edit": "تعديل",
+    "delete": "حذف",
+    "create": "إنشاء",
+    "close": "إغلاق",
+    "search": "بحث",
+    "loading": "جارٍ التحميل…",
+    "retry": "إعادة المحاولة",
+    "none": "لا شيء",
+    "yes": "نعم",
+    "no": "لا",
+    "previous": "السابق",
+    "next": "التالي",
+    "actions": "الإجراءات",
+    "view": "عرض",
+    "confirm": "تأكيد",
+    "dismiss": "إغلاق",
+    "unassigned": "غير مُسند",
+    "all": "الكل",
+    "backToDashboard": "العودة إلى لوحة التحكم",
+    "pagination": {
+      "summary": "صفحة {page} من {totalPages} — {total} إجمالاً"
+    },
+    "state": {
+      "loading": "جارٍ التحميل…",
+      "empty": "لا يوجد ما يُعرض.",
+      "error": "حدث خطأ ما.",
+      "success": "تم بنجاح.",
+      "warning": "تنبيه."
+    },
+    "bytes": {
+      "b": "بايت",
+      "kb": "ك.ب",
+      "mb": "م.ب"
+    }
+  },
+  "a11y": {
+    "skipToContent": "الانتقال إلى المحتوى الرئيسي",
+    "mainNavigation": "التنقل الرئيسي",
+    "openMenu": "فتح القائمة",
+    "closeMenu": "إغلاق القائمة",
+    "switchLanguage": "تغيير اللغة"
+  },
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "workspace": "مساحة العمل",
+    "tickets": "التذاكر",
+    "customers": "العملاء",
+    "users": "المستخدمون",
+    "tasks": "المهام",
+    "systemStatus": "حالة النظام",
+    "group": {
+      "work": "العمل",
+      "records": "السجلات",
+      "administration": "الإدارة"
+    }
+  },
+  "auth": {
+    "signIn": "تسجيل الدخول",
+    "signingIn": "جارٍ تسجيل الدخول…",
+    "signOut": "تسجيل الخروج",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "mustChangePassword": "تم تعيين كلمة المرور بواسطة مسؤول النظام. يُرجى التواصل مع مسؤول النظام لتغييرها."
+  },
+  "error": {
+    "forbidden": "لا يملك حسابك صلاحية الوصول إلى هذه الصفحة.",
+    "notFound": "الصفحة غير موجودة",
+    "generic": "حدث خطأ ما."
+  },
+  "route": {
+    "title": {
+      "signIn": "تسجيل الدخول",
+      "newCustomer": "عميل جديد",
+      "customer": "العميل",
+      "editCustomer": "تعديل العميل",
+      "newTicket": "تذكرة جديدة",
+      "ticket": "التذكرة",
+      "editTicket": "تعديل التذكرة",
+      "notAllowed": "غير مسموح",
+      "notFound": "غير موجود"
+    }
+  },
+  "customer": {
+    "field": {
+      "name": "الاسم",
+      "type": "النوع",
+      "companyName": "اسم الشركة",
+      "email": "البريد الإلكتروني",
+      "phone": "الهاتف",
+      "alternatePhone": "هاتف بديل",
+      "addressLine1": "العنوان - السطر الأول",
+      "addressLine2": "العنوان - السطر الثاني",
+      "city": "المدينة",
+      "country": "الدولة",
+      "postalCode": "الرمز البريدي",
+      "status": "الحالة",
+      "assignedAgent": "الموظف المسؤول",
+      "createdBy": "أُنشئ بواسطة",
+      "createdAt": "تاريخ الإنشاء",
+      "updatedAt": "آخر تحديث",
+      "notesFiles": "الملاحظات/الملفات"
+    },
+    "status": {
+      "PROSPECT": "عميل محتمل",
+      "ACTIVE": "نشط",
+      "INACTIVE": "غير نشط",
+      "ARCHIVED": "مؤرشف"
+    },
+    "type": {
+      "INDIVIDUAL": "فرد",
+      "COMPANY": "شركة"
+    },
+    "list": {
+      "title": "العملاء",
+      "createCustomer": "إنشاء عميل",
+      "searchPlaceholder": "الاسم أو الشركة أو البريد الإلكتروني أو الهاتف",
+      "allStatuses": "جميع الحالات",
+      "allTypes": "جميع الأنواع",
+      "loading": "جارٍ تحميل العملاء…",
+      "empty": "لا يوجد عملاء مطابقون لهذه الفلاتر.",
+      "caption": "العملاء"
+    },
+    "tab": {
+      "notes": "الملاحظات",
+      "attachments": "المرفقات",
+      "history": "السجل"
+    },
+    "detail": {
+      "addNote": "إضافة ملاحظة",
+      "noNotes": "لا توجد ملاحظات بعد.",
+      "deleteNoteConfirm": "هل تريد حذف هذه الملاحظة؟",
+      "uploadHint": "حتى 10 ميجابايت. PDF، صور، نصوص، CSV، Word، وExcel.",
+      "noAttachments": "لا توجد مرفقات بعد.",
+      "deleteAttachmentConfirm": "هل تريد حذف {fileName}؟",
+      "channel": "القناة",
+      "direction": "الاتجاه",
+      "occurredAt": "وقت الحدوث",
+      "logInteraction": "تسجيل تفاعل",
+      "noInteractions": "لم يتم تسجيل أي تفاعلات بعد.",
+      "deleteInteractionConfirm": "هل تريد حذف هذا التفاعل؟",
+      "loggedBy": "سُجِّل بواسطة {name}",
+      "ticketingNote": "ستظهر تذاكر الدعم في هذا السجل الزمني بمجرد إطلاق نظام التذاكر. التفاعلات المسجلة هنا هي السجل الحالي."
+    },
+    "form": {
+      "newTitle": "عميل جديد",
+      "editTitle": "تعديل العميل",
+      "section": {
+        "identity": "البيانات الأساسية",
+        "contact": "بيانات التواصل",
+        "assignment": "الإسناد"
+      }
+    }
+  },
+  "ticket": {
+    "field": {
+      "subject": "الموضوع",
+      "description": "الوصف",
+      "category": "الفئة",
+      "priority": "الأولوية",
+      "status": "الحالة",
+      "assignedAgent": "الموظف المسؤول",
+      "customer": "العميل",
+      "createdBy": "أُنشئت بواسطة",
+      "createdAt": "تاريخ الإنشاء",
+      "updatedAt": "آخر تحديث",
+      "commentsFiles": "التعليقات/الملفات"
+    },
+    "status": {
+      "OPEN": "مفتوحة",
+      "IN_PROGRESS": "قيد المعالجة",
+      "ON_HOLD": "معلّقة",
+      "RESOLVED": "تم الحل",
+      "CLOSED": "مغلقة"
+    },
+    "priority": {
+      "LOW": "منخفضة",
+      "MEDIUM": "متوسطة",
+      "HIGH": "عالية",
+      "URGENT": "عاجلة"
+    },
+    "category": {
+      "GENERAL": "عام",
+      "TECHNICAL": "تقني",
+      "BILLING": "الفوترة",
+      "ACCOUNT": "الحساب",
+      "FEATURE_REQUEST": "طلب ميزة",
+      "BUG_REPORT": "بلاغ عن خلل",
+      "OTHER": "أخرى"
+    },
+    "list": {
+      "title": "التذاكر",
+      "newTicket": "تذكرة جديدة",
+      "searchPlaceholder": "الموضوع أو الوصف",
+      "allCategories": "جميع الفئات",
+      "allPriorities": "جميع الأولويات",
+      "allStatuses": "جميع الحالات",
+      "loading": "جارٍ تحميل التذاكر…",
+      "empty": "لا توجد تذاكر مطابقة لهذه الفلاتر.",
+      "caption": "التذاكر"
+    },
+    "tab": {
+      "comments": "التعليقات",
+      "attachments": "المرفقات",
+      "history": "السجل"
+    },
+    "history": {
+      "field": {
+        "status": "الحالة",
+        "priority": "الأولوية",
+        "category": "الفئة",
+        "assignedAgentId": "الموظف المسؤول"
+      }
+    },
+    "detail": {
+      "addComment": "إضافة تعليق",
+      "noComments": "لا توجد تعليقات بعد.",
+      "deleteCommentConfirm": "هل تريد حذف هذا التعليق؟",
+      "noAttachments": "لا توجد مرفقات بعد.",
+      "deleteAttachmentConfirm": "هل تريد حذف {fileName}؟",
+      "noHistory": "لا يوجد سجل بعد.",
+      "changedBy": "غيّره {name} في {date}"
+    },
+    "form": {
+      "newTitle": "تذكرة جديدة",
+      "editTitle": "تعديل التذكرة",
+      "section": {
+        "ticket": "التذكرة",
+        "classification": "التصنيف",
+        "assignment": "الإسناد"
+      },
+      "customerLabel": "العميل",
+      "selectCustomer": "اختر عميلاً",
+      "customerStatic": "العميل: {name}"
+    }
+  },
+  "interaction": {
+    "channel": {
+      "PHONE": "هاتف",
+      "EMAIL": "بريد إلكتروني",
+      "CHAT": "دردشة مباشرة",
+      "MEETING": "اجتماع",
+      "OTHER": "أخرى",
+      "WHATSAPP": "WhatsApp",
+      "SMS": "SMS",
+      "WEB_FORM": "نموذج الموقع"
+    },
+    "direction": {
+      "INBOUND": "وارد",
+      "OUTBOUND": "صادر"
+    }
+  },
+  "user": {
+    "field": {
+      "name": "الاسم",
+      "fullName": "الاسم الكامل",
+      "email": "البريد الإلكتروني",
+      "roles": "الأدوار",
+      "department": "القسم",
+      "status": "الحالة",
+      "lastLogin": "آخر تسجيل دخول",
+      "password": "كلمة المرور",
+      "newPassword": "كلمة المرور الجديدة"
+    },
+    "status": {
+      "active": "نشط",
+      "inactive": "غير نشط",
+      "never": "أبداً"
+    },
+    "list": {
+      "title": "المستخدمون",
+      "createUser": "إنشاء مستخدم",
+      "searchPlaceholder": "الاسم أو البريد الإلكتروني",
+      "allRoles": "جميع الأدوار",
+      "all": "الكل",
+      "loading": "جارٍ تحميل المستخدمين…",
+      "empty": "لا يوجد مستخدمون مطابقون لهذه الفلاتر.",
+      "caption": "حسابات المستخدمين"
+    },
+    "action": {
+      "roles": "الأدوار",
+      "deactivate": "تعطيل",
+      "reactivate": "إعادة تفعيل",
+      "resetPassword": "إعادة تعيين كلمة المرور",
+      "deactivateConfirm": "هل تريد تعطيل {name}؟ سيتم تسجيل خروجه من جميع الجلسات."
+    },
+    "form": {
+      "createTitle": "إنشاء مستخدم",
+      "editTitle": "تعديل {name}",
+      "rolesTitle": "أدوار {name}",
+      "rolesLegend": "الأدوار",
+      "resetTitle": "إعادة تعيين كلمة مرور {name}",
+      "resetHint": "سيتعين على {name} تغيير كلمة المرور هذه عند تسجيل الدخول التالي، وسيتم تسجيل الخروج فوراً من جميع الجلسات الحالية لهذا الحساب.",
+      "noDepartment": "بدون قسم"
+    }
+  },
+  "role": {
+    "system-administrator": "مسؤول النظام",
+    "crm-manager": "مدير علاقات العملاء",
+    "support-supervisor": "مشرف الدعم",
+    "support-agent": "موظف الدعم",
+    "customer": "عميل",
+    "reporting-user": "مستخدم التقارير"
+  },
+  "attachment": {
+    "upload": "رفع",
+    "download": "تنزيل",
+    "hint": "حتى 10 ميجابايت. PDF، صور، نصوص، CSV، Word، وExcel."
+  },
+  "systemStatus": {
+    "title": "حالة النظام",
+    "refresh": "تحديث",
+    "checking": "جارٍ الفحص…",
+    "checkingApi": "جارٍ فحص واجهة البرمجة…",
+    "cannotReach": "تعذّر الوصول إلى واجهة البرمجة.",
+    "startHint": "شغّلها باستخدام {command} من جذر المستودع.",
+    "api": "واجهة البرمجة",
+    "healthy": "سليمة",
+    "degraded": "متدهورة",
+    "service": "الخدمة",
+    "version": "الإصدار",
+    "environment": "البيئة",
+    "uptime": "مدة التشغيل",
+    "uptimeValue": "{seconds} ث",
+    "database": "قاعدة البيانات",
+    "connected": "متصلة",
+    "unavailable": "غير متاحة",
+    "databaseError": "خطأ في قاعدة البيانات",
+    "lastChecked": "آخر فحص {time}"
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "intro": "يوفر هذا الإصدار التأسيسي هيكل التطبيق — التوجيه والتخطيط وعميل واجهة برمجة مدعوم بـ Pinia — دون شاشات خاصة بنطاق إدارة العملاء بعد.",
+    "systemStatusLink": "تفضل بزيارة صفحة {link} لمشاهدة حالة واجهة البرمجة وقاعدة البيانات، والتي يتم جلبها مباشرةً عبر عميل واجهة البرمجة."
+  }
+}

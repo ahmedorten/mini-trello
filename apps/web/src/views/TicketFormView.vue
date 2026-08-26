@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { useTicketsStore } from '@/stores/tickets';
 import {
   TICKET_CATEGORIES,
@@ -14,6 +15,7 @@ import {
 const route = useRoute();
 const router = useRouter();
 const tickets = useTicketsStore();
+const { t } = useI18n();
 
 const ticketId = computed(() => (route.params.id as string | undefined) ?? null);
 const isEdit = computed(() => ticketId.value !== null);
@@ -26,14 +28,6 @@ const form = reactive({
   priority: 'MEDIUM' as TicketPriority,
   assignedAgentId: '',
 });
-
-function categoryLabel(category: TicketCategory): string {
-  return category.charAt(0) + category.slice(1).toLowerCase().replace(/_/g, ' ');
-}
-
-function priorityLabel(priority: TicketPriority): string {
-  return priority.charAt(0) + priority.slice(1).toLowerCase();
-}
 
 onMounted(async () => {
   void tickets.loadAgents();
@@ -99,61 +93,61 @@ function cancel(): void {
 
 <template>
   <section>
-    <h1>{{ isEdit ? 'Edit ticket' : 'New ticket' }}</h1>
+    <h1>{{ isEdit ? t('ticket.form.editTitle') : t('ticket.form.newTitle') }}</h1>
 
     <form class="ticket-form" @submit.prevent="submit">
       <div v-if="tickets.error" role="alert" class="ticket-form__error">{{ tickets.error }}</div>
 
       <fieldset>
-        <legend>Ticket</legend>
+        <legend>{{ t('ticket.form.section.ticket') }}</legend>
         <label v-if="!isEdit">
-          Customer
+          {{ t('ticket.form.customerLabel') }}
           <select v-model="form.customerId" required>
-            <option value="" disabled>Select a customer</option>
+            <option value="" disabled>{{ t('ticket.form.selectCustomer') }}</option>
             <option v-for="customer in tickets.customerOptions" :key="customer.id" :value="customer.id">
               {{ customer.name }}
             </option>
           </select>
         </label>
         <p v-else class="ticket-form__static">
-          Customer: <strong>{{ tickets.current?.customer.name }}</strong>
+          {{ t('ticket.form.customerStatic', { name: tickets.current?.customer.name ?? '' }) }}
         </p>
         <label>
-          Subject
+          {{ t('ticket.field.subject') }}
           <input v-model="form.subject" type="text" required minlength="2" maxlength="160">
         </label>
         <label>
-          Description
+          {{ t('ticket.field.description') }}
           <textarea v-model="form.description" rows="5" required minlength="1" maxlength="8000" />
         </label>
       </fieldset>
 
       <fieldset>
-        <legend>Classification</legend>
+        <legend>{{ t('ticket.form.section.classification') }}</legend>
         <label>
-          Category
+          {{ t('ticket.field.category') }}
           <select v-model="form.category">
             <option v-for="category in TICKET_CATEGORIES" :key="category" :value="category">
-              {{ categoryLabel(category) }}
+              {{ t(`ticket.category.${category}`) }}
             </option>
           </select>
         </label>
         <label>
-          Priority
+          {{ t('ticket.field.priority') }}
           <select v-model="form.priority">
             <option v-for="priority in TICKET_PRIORITIES" :key="priority" :value="priority">
-              {{ priorityLabel(priority) }}
+              {{ t(`ticket.priority.${priority}`) }}
             </option>
           </select>
         </label>
       </fieldset>
 
       <fieldset>
-        <legend>Assignment</legend>
+        <legend>{{ t('ticket.form.section.assignment') }}</legend>
         <label>
-          Assigned agent
+          {{ t('ticket.field.assignedAgent') }}
           <select v-model="form.assignedAgentId">
-            <option value="">Unassigned</option>
+            <option value="">{{ t('common.unassigned') }}</option>
             <option v-for="agent in tickets.agents" :key="agent.id" :value="agent.id">
               {{ agent.fullName }}
             </option>
@@ -166,9 +160,9 @@ function cancel(): void {
           type="submit"
           :disabled="tickets.isSaving || form.subject.trim().length < 2 || form.description.trim().length < 1"
         >
-          Save
+          {{ t('common.save') }}
         </button>
-        <button type="button" @click="cancel">Cancel</button>
+        <button type="button" @click="cancel">{{ t('common.cancel') }}</button>
       </div>
     </form>
   </section>
@@ -178,15 +172,15 @@ function cancel(): void {
 .ticket-form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  max-width: 640px;
+  gap: var(--space-5);
+  max-inline-size: 40rem;
 }
 
 .ticket-form fieldset {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding: 1rem;
+  gap: var(--space-3);
+  padding: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
 }
@@ -194,7 +188,7 @@ function cancel(): void {
 .ticket-form label {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .ticket-form__static {
@@ -202,15 +196,15 @@ function cancel(): void {
 }
 
 .ticket-form__error {
-  padding: 0.75rem 1rem;
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--color-error) 10%, white);
+  background: var(--color-error-soft);
   border: 1px solid var(--color-error);
   color: var(--color-error);
 }
 
 .ticket-form__actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 </style>

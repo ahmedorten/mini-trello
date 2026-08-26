@@ -1,0 +1,36 @@
+/** 24×24, stroke-only line icons. One <path> per icon so a typo in `name` is a
+ *  compile-time type error (Product rule 4). `chevron-start`/`chevron-end` hold
+ *  their LTR glyph here; AppIcon swaps them for `isRtl` (Product rule 5). */
+export const ICON_PATHS = {
+  dashboard: 'M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z',
+  workspace: 'M3 7l9-4 9 4-9 4-9-4zM3 12l9 4 9-4M3 17l9 4 9-4',
+  tickets: 'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z',
+  customers: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
+  users: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM17 11a3 3 0 1 0 0-6M2 21a7 7 0 0 1 14 0M15 14a7 7 0 0 1 7 7',
+  tasks: 'M5 5h4v4H5zM5 11h4v4H5zM5 17h4v4H5zM12 6h8M12 13h8M12 20h8',
+  communication: 'M4 4h16v12H8l-4 4z',
+  status: 'M3 12h4l2-7 4 14 2-7h6',
+  search: 'M10 4a6 6 0 1 0 0 12 6 6 0 0 0 0-12zM20 20l-5.5-5.5',
+  plus: 'M12 4v16M4 12h16',
+  edit: 'M4 20l4-1 11-11-3-3L5 16zM14 5l3 3',
+  trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13',
+  download: 'M12 3v12M7 10l5 5 5-5M4 21h16',
+  upload: 'M12 21V9M7 14l5-5 5 5M4 3h16',
+  close: 'M5 5l14 14M19 5L5 19',
+  check: 'M4 12l6 6L20 6',
+  'alert-triangle': 'M12 3l10 18H2zM12 9v5M12 17h.01',
+  'alert-circle': 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8v5M12 16h.01',
+  info: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8h.01M12 11v5',
+  clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l4 2',
+  globe: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18',
+  logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
+  menu: 'M3 6h18M3 12h18M3 18h18',
+  'chevron-start': 'M15 6l-6 6 6 6',
+  'chevron-end': 'M9 6l6 6-6 6',
+  'chevron-down': 'M6 9l6 6 6-6',
+  paperclip: 'M21 11l-9 9a5 5 0 0 1-7-7l9-9a3 3 0 0 1 4 4l-9 9a1 1 0 0 1-2-2l8-8',
+  send: 'M22 2L11 13M22 2l-7 20-4-9-9-4z',
+  'user-check': 'M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a6 6 0 0 1 12 0M17 11l2 2 4-4',
+} as const;
+
+export type IconName = keyof typeof ICON_PATHS;

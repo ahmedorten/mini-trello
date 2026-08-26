@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createRouter, createWebHistory } from 'vue-router';
 import { reactive } from 'vue';
+import { createPinia } from 'pinia';
 import TicketsView from './TicketsView.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useTicketsStore } from '@/stores/tickets';
+import { useLocaleStore } from '@/stores/locale';
 import type { Ticket } from '@/api/tickets';
 import type { PaginationMeta } from '@/api/users';
 
@@ -69,7 +71,7 @@ function mockTickets(overrides: {
   return store;
 }
 
-async function mountWithRouter() {
+async function mountWithRouter(pinia = createPinia()) {
   const router = createRouter({
     history: createWebHistory(),
     routes: [
@@ -84,7 +86,7 @@ async function mountWithRouter() {
   router.push('/tickets');
   await router.isReady();
 
-  return mount(TicketsView, { global: { plugins: [router] } });
+  return mount(TicketsView, { global: { plugins: [router, pinia] } });
 }
 
 describe('TicketsView', () => {
@@ -207,5 +209,26 @@ describe('TicketsView', () => {
     const subjectLink = wrapper.find('tbody tr a');
 
     expect(subjectLink.attributes('href')).toBe('/tickets/t-1');
+  });
+
+  it('renders status and priority badge labels from the catalogue, in Arabic when the locale store is ar', async () => {
+    const pinia = createPinia();
+    const localeStore = useLocaleStore(pinia);
+    localeStore.setLocale('ar');
+
+    mockAuth(['tickets:read']);
+    mockTickets({
+      items: [makeTicket({ status: 'IN_PROGRESS', priority: 'URGENT' })],
+      meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
+    });
+
+    const wrapper = await mountWithRouter(pinia);
+    const row = wrapper.find('tbody tr');
+
+    expect(row.text()).toContain('قيد المعالجة');
+    expect(row.text()).toContain('عاجلة');
+    expect(row.text()).not.toContain('IN_PROGRESS');
+
+    localeStore.setLocale('en');
   });
 });

@@ -3,14 +3,17 @@ import type { PaginationMeta } from './users';
 
 export type CustomerStatus = 'PROSPECT' | 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
 export type CustomerType = 'INDIVIDUAL' | 'COMPANY';
-export type InteractionChannel = 'PHONE' | 'EMAIL' | 'CHAT' | 'MEETING' | 'OTHER';
+export type InteractionChannel =
+  | 'PHONE' | 'EMAIL' | 'CHAT' | 'MEETING' | 'OTHER' | 'WHATSAPP' | 'SMS' | 'WEB_FORM';
 export type InteractionDirection = 'INBOUND' | 'OUTBOUND';
 
 /** The values, in display order, for every picker in this feature. Keep in step
  *  with the Prisma enums in apps/api/prisma/schema.prisma. */
 export const CUSTOMER_STATUSES: CustomerStatus[] = ['PROSPECT', 'ACTIVE', 'INACTIVE', 'ARCHIVED'];
 export const CUSTOMER_TYPES: CustomerType[] = ['INDIVIDUAL', 'COMPANY'];
-export const INTERACTION_CHANNELS: InteractionChannel[] = ['PHONE', 'EMAIL', 'CHAT', 'MEETING', 'OTHER'];
+export const INTERACTION_CHANNELS: InteractionChannel[] = [
+  'PHONE', 'EMAIL', 'CHAT', 'MEETING', 'OTHER', 'WHATSAPP', 'SMS', 'WEB_FORM',
+];
 
 /** Mirrors UserRefDto in apps/api/src/customers/dto/customer-response.dto.ts */
 export interface UserRef {

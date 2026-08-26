@@ -1,0 +1,342 @@
+{
+  "app": {
+    "name": "Customer Support CRM"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "create": "Create",
+    "close": "Close",
+    "search": "Search",
+    "loading": "Loading…",
+    "retry": "Retry",
+    "none": "None",
+    "yes": "Yes",
+    "no": "No",
+    "previous": "Previous",
+    "next": "Next",
+    "actions": "Actions",
+    "view": "View",
+    "confirm": "Confirm",
+    "dismiss": "Dismiss",
+    "unassigned": "Unassigned",
+    "all": "All",
+    "backToDashboard": "Back to the dashboard",
+    "pagination": {
+      "summary": "Page {page} of {totalPages} — {total} total"
+    },
+    "state": {
+      "loading": "Loading…",
+      "empty": "Nothing to show.",
+      "error": "Something went wrong.",
+      "success": "Done.",
+      "warning": "Heads up."
+    },
+    "bytes": {
+      "b": "B",
+      "kb": "KB",
+      "mb": "MB"
+    }
+  },
+  "a11y": {
+    "skipToContent": "Skip to main content",
+    "mainNavigation": "Main navigation",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "switchLanguage": "Switch language"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "workspace": "Workspace",
+    "tickets": "Tickets",
+    "customers": "Customers",
+    "users": "Users",
+    "tasks": "Tasks",
+    "systemStatus": "System status",
+    "group": {
+      "work": "Work",
+      "records": "Records",
+      "administration": "Administration"
+    }
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signingIn": "Signing in…",
+    "signOut": "Sign out",
+    "email": "Email",
+    "password": "Password",
+    "mustChangePassword": "Your password was set by an administrator. Ask an administrator to change it for you."
+  },
+  "error": {
+    "forbidden": "Your account does not have permission to view this page.",
+    "notFound": "Page not found",
+    "generic": "Something went wrong."
+  },
+  "route": {
+    "title": {
+      "signIn": "Sign in",
+      "newCustomer": "New customer",
+      "customer": "Customer",
+      "editCustomer": "Edit customer",
+      "newTicket": "New ticket",
+      "ticket": "Ticket",
+      "editTicket": "Edit ticket",
+      "notAllowed": "Not allowed",
+      "notFound": "Not found"
+    }
+  },
+  "customer": {
+    "field": {
+      "name": "Name",
+      "type": "Type",
+      "companyName": "Company name",
+      "email": "Email",
+      "phone": "Phone",
+      "alternatePhone": "Alternate phone",
+      "addressLine1": "Address line 1",
+      "addressLine2": "Address line 2",
+      "city": "City",
+      "country": "Country",
+      "postalCode": "Postal code",
+      "status": "Status",
+      "assignedAgent": "Assigned agent",
+      "createdBy": "Created by",
+      "createdAt": "Created",
+      "updatedAt": "Last updated",
+      "notesFiles": "Notes/Files"
+    },
+    "status": {
+      "PROSPECT": "Prospect",
+      "ACTIVE": "Active",
+      "INACTIVE": "Inactive",
+      "ARCHIVED": "Archived"
+    },
+    "type": {
+      "INDIVIDUAL": "Individual",
+      "COMPANY": "Company"
+    },
+    "list": {
+      "title": "Customers",
+      "createCustomer": "Create customer",
+      "searchPlaceholder": "Name, company, email or phone",
+      "allStatuses": "All statuses",
+      "allTypes": "All types",
+      "loading": "Loading customers…",
+      "empty": "No customers match these filters.",
+      "caption": "Customers"
+    },
+    "tab": {
+      "notes": "Notes",
+      "attachments": "Attachments",
+      "history": "History"
+    },
+    "detail": {
+      "addNote": "Add note",
+      "noNotes": "No notes yet.",
+      "deleteNoteConfirm": "Delete this note?",
+      "uploadHint": "Up to 10 MB. PDF, images, text, CSV, Word, and Excel.",
+      "noAttachments": "No attachments yet.",
+      "deleteAttachmentConfirm": "Delete {fileName}?",
+      "channel": "Channel",
+      "direction": "Direction",
+      "occurredAt": "Occurred at",
+      "logInteraction": "Log interaction",
+      "noInteractions": "No interactions logged yet.",
+      "deleteInteractionConfirm": "Delete this interaction?",
+      "loggedBy": "Logged by {name}",
+      "ticketingNote": "Support tickets will appear in this timeline once ticketing ships. Interactions logged here are the current history."
+    },
+    "form": {
+      "newTitle": "New customer",
+      "editTitle": "Edit customer",
+      "section": {
+        "identity": "Identity",
+        "contact": "Contact",
+        "assignment": "Assignment"
+      }
+    }
+  },
+  "ticket": {
+    "field": {
+      "subject": "Subject",
+      "description": "Description",
+      "category": "Category",
+      "priority": "Priority",
+      "status": "Status",
+      "assignedAgent": "Assigned agent",
+      "customer": "Customer",
+      "createdBy": "Created by",
+      "createdAt": "Created",
+      "updatedAt": "Last updated",
+      "commentsFiles": "Comments/Files"
+    },
+    "status": {
+      "OPEN": "Open",
+      "IN_PROGRESS": "In progress",
+      "ON_HOLD": "On hold",
+      "RESOLVED": "Resolved",
+      "CLOSED": "Closed"
+    },
+    "priority": {
+      "LOW": "Low",
+      "MEDIUM": "Medium",
+      "HIGH": "High",
+      "URGENT": "Urgent"
+    },
+    "category": {
+      "GENERAL": "General",
+      "TECHNICAL": "Technical",
+      "BILLING": "Billing",
+      "ACCOUNT": "Account",
+      "FEATURE_REQUEST": "Feature request",
+      "BUG_REPORT": "Bug report",
+      "OTHER": "Other"
+    },
+    "list": {
+      "title": "Tickets",
+      "newTicket": "New ticket",
+      "searchPlaceholder": "Subject or description",
+      "allCategories": "All categories",
+      "allPriorities": "All priorities",
+      "allStatuses": "All statuses",
+      "loading": "Loading tickets…",
+      "empty": "No tickets match these filters.",
+      "caption": "Tickets"
+    },
+    "tab": {
+      "comments": "Comments",
+      "attachments": "Attachments",
+      "history": "History"
+    },
+    "history": {
+      "field": {
+        "status": "Status",
+        "priority": "Priority",
+        "category": "Category",
+        "assignedAgentId": "Assigned agent"
+      }
+    },
+    "detail": {
+      "addComment": "Add comment",
+      "noComments": "No comments yet.",
+      "deleteCommentConfirm": "Delete this comment?",
+      "noAttachments": "No attachments yet.",
+      "deleteAttachmentConfirm": "Delete {fileName}?",
+      "noHistory": "No history yet.",
+      "changedBy": "Changed by {name} on {date}"
+    },
+    "form": {
+      "newTitle": "New ticket",
+      "editTitle": "Edit ticket",
+      "section": {
+        "ticket": "Ticket",
+        "classification": "Classification",
+        "assignment": "Assignment"
+      },
+      "customerLabel": "Customer",
+      "selectCustomer": "Select a customer",
+      "customerStatic": "Customer: {name}"
+    }
+  },
+  "interaction": {
+    "channel": {
+      "PHONE": "Phone",
+      "EMAIL": "Email",
+      "CHAT": "Live Chat",
+      "MEETING": "Meeting",
+      "OTHER": "Other",
+      "WHATSAPP": "WhatsApp",
+      "SMS": "SMS",
+      "WEB_FORM": "Web form"
+    },
+    "direction": {
+      "INBOUND": "Inbound",
+      "OUTBOUND": "Outbound"
+    }
+  },
+  "user": {
+    "field": {
+      "name": "Name",
+      "fullName": "Full name",
+      "email": "Email",
+      "roles": "Roles",
+      "department": "Department",
+      "status": "Status",
+      "lastLogin": "Last login",
+      "password": "Password",
+      "newPassword": "New password"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "never": "Never"
+    },
+    "list": {
+      "title": "Users",
+      "createUser": "Create user",
+      "searchPlaceholder": "Name or email",
+      "allRoles": "All roles",
+      "all": "All",
+      "loading": "Loading users…",
+      "empty": "No users match these filters.",
+      "caption": "User accounts"
+    },
+    "action": {
+      "roles": "Roles",
+      "deactivate": "Deactivate",
+      "reactivate": "Reactivate",
+      "resetPassword": "Reset password",
+      "deactivateConfirm": "Deactivate {name}? They will be signed out everywhere."
+    },
+    "form": {
+      "createTitle": "Create user",
+      "editTitle": "Edit {name}",
+      "rolesTitle": "Roles for {name}",
+      "rolesLegend": "Roles",
+      "resetTitle": "Reset password for {name}",
+      "resetHint": "{name} must change this password at next sign-in, and every existing session for that account will be signed out immediately.",
+      "noDepartment": "No department"
+    }
+  },
+  "role": {
+    "system-administrator": "System Administrator",
+    "crm-manager": "CRM Manager",
+    "support-supervisor": "Support Supervisor",
+    "support-agent": "Support Agent",
+    "customer": "Customer",
+    "reporting-user": "Reporting User"
+  },
+  "attachment": {
+    "upload": "Upload",
+    "download": "Download",
+    "hint": "Up to 10 MB. PDF, images, text, CSV, Word, and Excel."
+  },
+  "systemStatus": {
+    "title": "System status",
+    "refresh": "Refresh",
+    "checking": "Checking…",
+    "checkingApi": "Checking API…",
+    "cannotReach": "Cannot reach the API.",
+    "startHint": "Start it with {command} from the repository root.",
+    "api": "API",
+    "healthy": "Healthy",
+    "degraded": "Degraded",
+    "service": "Service",
+    "version": "Version",
+    "environment": "Environment",
+    "uptime": "Uptime",
+    "uptimeValue": "{seconds} s",
+    "database": "Database",
+    "connected": "Connected",
+    "unavailable": "Unavailable",
+    "databaseError": "Database error",
+    "lastChecked": "Last checked {time}"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "intro": "This bootstrap delivers the application shell — routing, layout, and a Pinia-backed API client — with no CRM domain screens yet.",
+    "systemStatusLink": "Visit the {link} page to see the API and database health, fetched live through the API client."
+  }
+}

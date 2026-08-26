@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
+import AppButton from '@/components/AppButton.vue';
+import LocaleSwitcher from '@/components/LocaleSwitcher.vue';
 
 const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
+const { t } = useI18n();
 
 const email = ref('');
 const password = ref('');
@@ -32,15 +36,19 @@ async function submit(): Promise<void> {
 
 <template>
   <section class="login">
+    <div class="login__locale">
+      <LocaleSwitcher />
+    </div>
+
     <form class="login__card" @submit.prevent="submit">
-      <h1>Sign in</h1>
+      <h1>{{ t('auth.signIn') }}</h1>
 
       <div v-if="auth.error" role="alert" class="login__error">
         {{ auth.error }}
       </div>
 
       <label class="login__field" for="login-email">
-        Email
+        {{ t('auth.email') }}
         <input
           id="login-email"
           v-model="email"
@@ -52,7 +60,7 @@ async function submit(): Promise<void> {
       </label>
 
       <label class="login__field" for="login-password">
-        Password
+        {{ t('auth.password') }}
         <input
           id="login-password"
           v-model="password"
@@ -62,9 +70,9 @@ async function submit(): Promise<void> {
         >
       </label>
 
-      <button type="submit" :disabled="auth.isLoading || !email || !password">
-        {{ auth.isLoading ? 'Signing in…' : 'Sign in' }}
-      </button>
+      <AppButton type="submit" variant="primary" :disabled="auth.isLoading || !email || !password">
+        {{ auth.isLoading ? t('auth.signingIn') : t('auth.signIn') }}
+      </AppButton>
     </form>
   </section>
 </template>
@@ -72,33 +80,42 @@ async function submit(): Promise<void> {
 <style scoped>
 .login {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
-  min-height: calc(100vh - 56px);
+  justify-content: center;
+  gap: var(--space-4);
+  min-block-size: calc(100vh - var(--header-height));
+}
+
+.login__locale {
+  align-self: flex-end;
+  inline-size: 100%;
+  max-inline-size: 360px;
 }
 
 .login__card {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  width: 100%;
-  max-width: 360px;
-  padding: 2rem;
+  gap: var(--space-4);
+  inline-size: 100%;
+  max-inline-size: 360px;
+  padding: var(--space-6);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
 }
 
 .login__field {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
-  font-size: 0.9rem;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 
 .login__field input {
-  padding: 0.5rem 0.625rem;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   font: inherit;
@@ -106,27 +123,11 @@ async function submit(): Promise<void> {
 }
 
 .login__error {
-  padding: 0.75rem;
+  padding: var(--space-3);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--color-error) 10%, white);
+  background: var(--color-error-soft);
   border: 1px solid var(--color-error);
   color: var(--color-error);
-  font-size: 0.9rem;
-}
-
-.login__card button {
-  padding: 0.6rem;
-  border: none;
-  border-radius: var(--radius);
-  background: var(--color-accent);
-  color: #ffffff;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.login__card button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  font-size: var(--font-size-sm);
 }
 </style>

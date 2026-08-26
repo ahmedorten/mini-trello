@@ -1,9 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createRouter, createWebHistory } from 'vue-router';
 import { reactive } from 'vue';
+import { createPinia, setActivePinia } from 'pinia';
 import AppLayout from './AppLayout.vue';
 import { useAuthStore } from '@/stores/auth';
+import { useLocaleStore } from '@/stores/locale';
 
 vi.mock('@/stores/auth', () => ({
   useAuthStore: vi.fn(),
@@ -16,6 +18,7 @@ const routes = [
   { path: '/system-status', name: 'system-status', component: { template: '<div>Status</div>' } },
   { path: '/users', name: 'users', component: { template: '<div>Users</div>' } },
   { path: '/customers', name: 'customers', component: { template: '<div>Customers</div>' } },
+  { path: '/tickets', name: 'tickets', component: { template: '<div>Tickets</div>' } },
   { path: '/login', name: 'login', component: { template: '<div>Login</div>' } },
 ];
 
@@ -47,15 +50,22 @@ function mockAuthStore(overrides: {
   return store;
 }
 
-async function mountLayout() {
+async function mountLayout(initialPath = '/') {
   const router = createRouter({ history: createWebHistory(), routes });
-  router.push('/');
+  router.push(initialPath);
   await router.isReady();
 
-  return { wrapper: mount(AppLayout, { global: { plugins: [router] } }), router };
+  const pinia = createPinia();
+  setActivePinia(pinia);
+
+  return { wrapper: mount(AppLayout, { global: { plugins: [router, pinia] } }), router };
 }
 
 describe('AppLayout', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
   it('renders the brand text', async () => {
     mockAuthStore();
     const { wrapper } = await mountLayout();
@@ -163,5 +173,90 @@ describe('AppLayout', () => {
     const { wrapper } = await mountLayout();
 
     expect(wrapper.text()).not.toContain('Your password was set by an administrator');
+  });
+
+  it('dismisses the must-change-password banner on click', async () => {
+    mockAuthStore({ isAuthenticated: true, mustChangePassword: true });
+    const { wrapper } = await mountLayout();
+
+    expect(wrapper.text()).toContain('Your password was set by an administrator');
+
+    const dismissButton = wrapper.findAll('button').find((b) => b.text() === 'Dismiss')!;
+    await dismissButton.trigger('click');
+
+    expect(wrapper.text()).not.toContain('Your password was set by an administrator');
+  });
+
+  it('renders the skip link as the first focusable element, targeting #main-content', async () => {
+    mockAuthStore();
+    const { wrapper } = await mountLayout();
+
+    const firstFocusable = wrapper.find('a, button, input, select, textarea, [tabindex]');
+    expect(firstFocusable.classes()).toContain('skip-link');
+    expect(firstFocusable.attributes('href')).toBe('#main-content');
+    expect(wrapper.find('#main-content').attributes('tabindex')).toBe('-1');
+  });
+
+  it('renders an icon and a label for every nav item', async () => {
+    mockAuthStore({ isAuthenticated: true, permissions: ['tickets:read'] });
+    const { wrapper } = await mountLayout();
+
+    const links = wrapper.findAll('.layout__link');
+    expect(links.length).toBeGreaterThan(0);
+
+    for (const link of links) {
+      expect(link.find('svg').exists()).toBe(true);
+      expect(link.find('span').text().length).toBeGreaterThan(0);
+    }
+  });
+
+  it('marks the active route link with aria-current=page', async () => {
+    mockAuthStore();
+    const { wrapper } = await mountLayout('/');
+
+    const dashboardLink = wrapper.find('a[href="/"]');
+    expect(dashboardLink.attributes('aria-current')).toBe('page');
+  });
+
+  it('toggles the drawer open class via the menu button', async () => {
+    mockAuthStore();
+    const { wrapper } = await mountLayout();
+
+    const nav = wrapper.find('.layout__nav');
+    expect(nav.classes()).not.toContain('layout__nav--open');
+
+    await wrapper.find('.layout__menu-toggle').trigger('click');
+    expect(wrapper.find('.layout__nav').classes()).toContain('layout__nav--open');
+  });
+
+  it('closes the drawer on navigation', async () => {
+    mockAuthStore({ isAuthenticated: true, permissions: ['tickets:read'] });
+    const { wrapper, router } = await mountLayout();
+
+    await wrapper.find('.layout__menu-toggle').trigger('click');
+    expect(wrapper.find('.layout__nav').classes()).toContain('layout__nav--open');
+
+    await router.push('/tickets');
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('.layout__nav').classes()).not.toContain('layout__nav--open');
+  });
+
+  it('renders the LocaleSwitcher when signed in', async () => {
+    mockAuthStore();
+    const { wrapper } = await mountLayout();
+
+    expect(wrapper.find('select.locale-switcher').exists()).toBe(true);
+  });
+
+  it('renders without throwing and sets dir=rtl when the locale store is set to ar', async () => {
+    mockAuthStore();
+    const { wrapper } = await mountLayout();
+
+    const localeStore = useLocaleStore();
+    localeStore.setLocale('ar');
+    await wrapper.vm.$nextTick();
+
+    expect(document.documentElement.dir).toBe('rtl');
   });
 });

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useTicketsStore } from '@/stores/tickets';
 import {
@@ -9,24 +10,18 @@ import {
   type TicketComment,
   type TicketStatus,
 } from '@/api/tickets';
+import { formatBytes } from '@/utils/format';
+import AppStateBlock from '@/components/AppStateBlock.vue';
+import AppBadge from '@/components/AppBadge.vue';
+import AppTabs from '@/components/AppTabs.vue';
+import type { AppTab } from '@/components/tabs';
 
 const route = useRoute();
 const auth = useAuthStore();
 const tickets = useTicketsStore();
+const { t, d, n } = useI18n();
 
 const ticketId = computed(() => route.params.id as string);
-
-function categoryLabel(category: string): string {
-  return category.charAt(0) + category.slice(1).toLowerCase().replace(/_/g, ' ');
-}
-
-function priorityLabel(priority: string): string {
-  return priority.charAt(0) + priority.slice(1).toLowerCase();
-}
-
-function statusLabel(status: string): string {
-  return status.charAt(0) + status.slice(1).toLowerCase().replace(/_/g, ' ');
-}
 
 async function changeStatus(event: Event): Promise<void> {
   const value = (event.target as HTMLSelectElement).value as TicketStatus;
@@ -39,6 +34,12 @@ async function changeStatus(event: Event): Promise<void> {
 // --- tabs ------------------------------------------------------------------
 
 const activeTab = ref<'comments' | 'attachments' | 'history'>('comments');
+
+const tabs = computed<AppTab[]>(() => [
+  { key: 'comments', labelKey: 'ticket.tab.comments', count: tickets.comments.length },
+  { key: 'attachments', labelKey: 'ticket.tab.attachments', count: tickets.attachments.length },
+  { key: 'history', labelKey: 'ticket.tab.history' },
+]);
 
 // --- comments ----------------------------------------------------------------
 
@@ -80,7 +81,7 @@ async function submitEditComment(comment: TicketComment): Promise<void> {
 }
 
 async function removeComment(comment: TicketComment): Promise<void> {
-  if (window.confirm('Delete this comment?')) {
+  if (window.confirm(t('ticket.detail.deleteCommentConfirm'))) {
     await tickets.removeComment(ticketId.value, comment.id);
   }
 }
@@ -115,39 +116,24 @@ function isOwnAttachment(attachment: TicketAttachment): boolean {
 }
 
 async function removeAttachment(attachment: TicketAttachment): Promise<void> {
-  if (window.confirm(`Delete ${attachment.fileName}?`)) {
+  if (window.confirm(t('ticket.detail.deleteAttachmentConfirm', { fileName: attachment.fileName }))) {
     await tickets.removeAttachment(ticketId.value, attachment.id);
   }
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
+function attachmentSize(bytes: number): string {
+  const { value, unitKey } = formatBytes(bytes);
 
-  const units = ['KB', 'MB', 'GB'];
-  let value = bytes / 1024;
-  let unitIndex = 0;
-
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-
-  return `${value.toFixed(1)} ${units[unitIndex]}`;
+  return `${n(value, 'decimal')} ${t(`common.bytes.${unitKey}`)}`;
 }
 
 // --- history -----------------------------------------------------------------
 
-const HISTORY_FIELD_LABELS: Record<string, string> = {
-  status: 'Status',
-  priority: 'Priority',
-  category: 'Category',
-  assignedAgentId: 'Assigned agent',
-};
-
 function historyFieldLabel(field: string): string {
-  return HISTORY_FIELD_LABELS[field] ?? field;
+  const key = `ticket.history.field.${field}`;
+  const translated = t(key);
+
+  return translated === key ? field : translated;
 }
 
 /** Best-effort only: TicketHistory never snapshots display names. A resolved
@@ -156,7 +142,7 @@ function historyFieldLabel(field: string): string {
 function resolveHistoryValue(field: string, value: string | null): string {
   if (field === 'assignedAgentId') {
     if (!value) {
-      return 'Unassigned';
+      return t('common.unassigned');
     }
 
     const agent = tickets.agents.find((candidate) => candidate.id === value);
@@ -179,9 +165,7 @@ onUnmounted(() => {
 
 <template>
   <section>
-    <div v-if="tickets.error && !tickets.current" role="alert" class="ticket-detail__error">
-      {{ tickets.error }}
-    </div>
+    <AppStateBlock v-if="tickets.error && !tickets.current" variant="error" :message="tickets.error" />
 
     <template v-else-if="tickets.current">
       <header class="ticket-detail__header">
@@ -195,21 +179,16 @@ onUnmounted(() => {
         </div>
 
         <div class="ticket-detail__controls">
-          <span
-            class="ticket-detail__badge"
-            :class="'ticket-detail__badge--status-' + tickets.current.status.toLowerCase()"
-          >
-            {{ statusLabel(tickets.current.status) }}
-          </span>
+          <AppBadge :status="tickets.current.status" />
 
           <select v-if="auth.can('tickets:write')" :value="tickets.current.status" @change="changeStatus">
             <option v-for="status in TICKET_STATUSES" :key="status" :value="status">
-              {{ statusLabel(status) }}
+              {{ t(`ticket.status.${status}`) }}
             </option>
           </select>
 
           <RouterLink v-if="auth.can('tickets:write')" :to="`/tickets/${tickets.current.id}/edit`">
-            Edit
+            {{ t('common.edit') }}
           </RouterLink>
         </div>
       </header>
@@ -218,60 +197,32 @@ onUnmounted(() => {
 
       <dl class="ticket-detail__overview">
         <div>
-          <dt>Category</dt>
-          <dd>{{ categoryLabel(tickets.current.category) }}</dd>
+          <dt>{{ t('ticket.field.category') }}</dt>
+          <dd>{{ t(`ticket.category.${tickets.current.category}`) }}</dd>
         </div>
         <div>
-          <dt>Priority</dt>
-          <dd>{{ priorityLabel(tickets.current.priority) }}</dd>
+          <dt>{{ t('ticket.field.priority') }}</dt>
+          <dd><AppBadge :priority="tickets.current.priority" /></dd>
         </div>
         <div>
-          <dt>Assigned to</dt>
-          <dd>{{ tickets.current.assignedAgent?.fullName ?? '—' }}</dd>
+          <dt>{{ t('ticket.field.assignedAgent') }}</dt>
+          <dd>{{ tickets.current.assignedAgent?.fullName ?? t('common.unassigned') }}</dd>
         </div>
         <div>
-          <dt>Created by</dt>
+          <dt>{{ t('ticket.field.createdBy') }}</dt>
           <dd>{{ tickets.current.createdBy?.fullName ?? '—' }}</dd>
         </div>
         <div>
-          <dt>Created</dt>
-          <dd>{{ new Date(tickets.current.createdAt).toLocaleString() }}</dd>
+          <dt>{{ t('ticket.field.createdAt') }}</dt>
+          <dd>{{ d(new Date(tickets.current.createdAt), 'long') }}</dd>
         </div>
         <div>
-          <dt>Last updated</dt>
-          <dd>{{ new Date(tickets.current.updatedAt).toLocaleString() }}</dd>
+          <dt>{{ t('ticket.field.updatedAt') }}</dt>
+          <dd>{{ d(new Date(tickets.current.updatedAt), 'long') }}</dd>
         </div>
       </dl>
 
-      <div class="ticket-detail__tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          :aria-selected="activeTab === 'comments'"
-          :class="{ 'ticket-detail__tab--active': activeTab === 'comments' }"
-          @click="activeTab = 'comments'"
-        >
-          Comments ({{ tickets.comments.length }})
-        </button>
-        <button
-          type="button"
-          role="tab"
-          :aria-selected="activeTab === 'attachments'"
-          :class="{ 'ticket-detail__tab--active': activeTab === 'attachments' }"
-          @click="activeTab = 'attachments'"
-        >
-          Attachments ({{ tickets.attachments.length }})
-        </button>
-        <button
-          type="button"
-          role="tab"
-          :aria-selected="activeTab === 'history'"
-          :class="{ 'ticket-detail__tab--active': activeTab === 'history' }"
-          @click="activeTab = 'history'"
-        >
-          History
-        </button>
-      </div>
+      <AppTabs v-model="activeTab" :tabs="tabs" class="ticket-detail__tabs" />
 
       <div v-if="activeTab === 'comments'" class="ticket-detail__panel">
         <form
@@ -280,26 +231,26 @@ onUnmounted(() => {
           @submit.prevent="submitNewComment"
         >
           <label>
-            Add comment
+            {{ t('ticket.detail.addComment') }}
             <textarea v-model="newCommentBody" rows="3" required />
           </label>
-          <button type="submit">Save</button>
+          <button type="submit">{{ t('common.save') }}</button>
         </form>
 
-        <p v-if="!tickets.comments.length">No comments yet.</p>
+        <p v-if="!tickets.comments.length">{{ t('ticket.detail.noComments') }}</p>
 
         <ul v-else class="ticket-detail__comment-list">
           <li v-for="comment in tickets.comments" :key="comment.id" class="ticket-detail__comment">
             <template v-if="editingCommentId === comment.id">
               <textarea v-model="editingCommentBody" rows="3" />
               <div class="ticket-detail__comment-actions">
-                <button type="button" @click="submitEditComment(comment)">Save</button>
-                <button type="button" @click="cancelEditComment">Cancel</button>
+                <button type="button" @click="submitEditComment(comment)">{{ t('common.save') }}</button>
+                <button type="button" @click="cancelEditComment">{{ t('common.cancel') }}</button>
               </div>
             </template>
             <template v-else>
               <p class="ticket-detail__comment-meta">
-                {{ comment.author.fullName }} — {{ new Date(comment.createdAt).toLocaleString() }}
+                {{ comment.author.fullName }} — {{ d(new Date(comment.createdAt), 'long') }}
               </p>
               <p class="ticket-detail__comment-body">{{ comment.body }}</p>
               <div
@@ -307,9 +258,9 @@ onUnmounted(() => {
                 class="ticket-detail__comment-actions"
               >
                 <button v-if="isOwnComment(comment)" type="button" @click="startEditComment(comment)">
-                  Edit
+                  {{ t('common.edit') }}
                 </button>
-                <button type="button" @click="removeComment(comment)">Delete</button>
+                <button type="button" @click="removeComment(comment)">{{ t('common.delete') }}</button>
               </div>
             </template>
           </li>
@@ -319,26 +270,26 @@ onUnmounted(() => {
       <div v-else-if="activeTab === 'attachments'" class="ticket-detail__panel">
         <div v-if="auth.can('ticket-attachments:write')" class="ticket-detail__upload">
           <input type="file" @change="onFileChange">
-          <button type="button" :disabled="!pendingFile" @click="submitUpload">Upload</button>
-          <p class="ticket-detail__hint">Up to 10 MB. PDF, images, text, CSV, Word, and Excel.</p>
+          <button type="button" :disabled="!pendingFile" @click="submitUpload">{{ t('attachment.upload') }}</button>
+          <p class="ticket-detail__hint">{{ t('attachment.hint') }}</p>
         </div>
 
-        <p v-if="!tickets.attachments.length">No attachments yet.</p>
+        <p v-if="!tickets.attachments.length">{{ t('ticket.detail.noAttachments') }}</p>
 
         <ul v-else class="ticket-detail__attachment-list">
           <li v-for="attachment in tickets.attachments" :key="attachment.id" class="ticket-detail__attachment">
-            <span class="ticket-detail__attachment-name">{{ attachment.fileName }}</span>
-            <span>{{ formatBytes(attachment.sizeBytes) }}</span>
+            <span class="ticket-detail__attachment-name" dir="ltr">{{ attachment.fileName }}</span>
+            <span>{{ attachmentSize(attachment.sizeBytes) }}</span>
             <span>{{ attachment.uploadedBy.fullName }}</span>
-            <span>{{ new Date(attachment.createdAt).toLocaleString() }}</span>
+            <span>{{ d(new Date(attachment.createdAt), 'long') }}</span>
             <div class="ticket-detail__attachment-actions">
-              <button type="button" @click="download(attachment)">Download</button>
+              <button type="button" @click="download(attachment)">{{ t('attachment.download') }}</button>
               <button
                 v-if="isOwnAttachment(attachment) || auth.can('tickets:manage')"
                 type="button"
                 @click="removeAttachment(attachment)"
               >
-                Delete
+                {{ t('common.delete') }}
               </button>
             </div>
           </li>
@@ -346,7 +297,7 @@ onUnmounted(() => {
       </div>
 
       <div v-else class="ticket-detail__panel">
-        <p v-if="!tickets.history.length">No history yet.</p>
+        <p v-if="!tickets.history.length">{{ t('ticket.detail.noHistory') }}</p>
 
         <ul v-else class="ticket-detail__history-list">
           <li v-for="entry in tickets.history" :key="entry.id" class="ticket-detail__history-entry">
@@ -357,7 +308,7 @@ onUnmounted(() => {
               {{ resolveHistoryValue(entry.field, entry.newValue) }}
             </p>
             <p class="ticket-detail__history-meta">
-              Changed by {{ entry.changedBy.fullName }} on {{ new Date(entry.createdAt).toLocaleString() }}
+              {{ t('ticket.detail.changedBy', { name: entry.changedBy.fullName, date: d(new Date(entry.createdAt), 'long') }) }}
             </p>
           </li>
         </ul>
@@ -367,19 +318,11 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.ticket-detail__error {
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--color-error) 10%, white);
-  border: 1px solid var(--color-error);
-  color: var(--color-error);
-}
-
 .ticket-detail__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 1rem;
+  margin-block-end: var(--space-4);
 }
 
 .ticket-detail__customer {
@@ -389,46 +332,13 @@ onUnmounted(() => {
 .ticket-detail__controls {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-}
-
-.ticket-detail__badge {
-  display: inline-block;
-  padding: 0.15rem 0.6rem;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  border: 1px solid var(--color-border);
-}
-
-.ticket-detail__badge--status-open {
-  background: color-mix(in srgb, var(--color-accent) 12%, white);
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-}
-
-.ticket-detail__badge--status-in_progress {
-  background: color-mix(in srgb, var(--color-ok) 12%, white);
-  border-color: var(--color-ok);
-  color: var(--color-ok);
-}
-
-.ticket-detail__badge--status-on_hold {
-  background: color-mix(in srgb, var(--color-text-muted) 12%, white);
-  border-color: var(--color-text-muted);
-  color: var(--color-text-muted);
-}
-
-.ticket-detail__badge--status-resolved,
-.ticket-detail__badge--status-closed {
-  background: color-mix(in srgb, var(--color-border) 40%, white);
-  border-color: var(--color-border);
-  color: var(--color-text-muted);
+  gap: var(--space-3);
 }
 
 .ticket-detail__description {
   white-space: pre-wrap;
-  margin: 0 0 1.5rem;
-  padding: 1rem 1.5rem;
+  margin: 0 0 var(--space-5);
+  padding: var(--space-4) var(--space-5);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
@@ -437,16 +347,16 @@ onUnmounted(() => {
 .ticket-detail__overview {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  padding: 1rem 1.5rem;
-  margin: 0 0 1.5rem;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  margin: 0 0 var(--space-5);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
 }
 
 .ticket-detail__overview dt {
-  font-size: 0.8rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-muted);
 }
 
@@ -455,38 +365,21 @@ onUnmounted(() => {
 }
 
 .ticket-detail__tabs {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.ticket-detail__tabs button {
-  padding: 0.5rem 1rem;
-  border: none;
-  background: none;
-  cursor: pointer;
-  color: var(--color-text-muted);
-  font: inherit;
-}
-
-.ticket-detail__tab--active {
-  color: var(--color-accent);
-  border-bottom: 2px solid var(--color-accent);
+  margin-block-end: var(--space-4);
 }
 
 .ticket-detail__panel {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  padding: 1.5rem;
+  padding: var(--space-5);
 }
 
 .ticket-detail__comment-form {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-3);
+  margin-block-end: var(--space-5);
 }
 
 .ticket-detail__comment-list,
@@ -496,12 +389,12 @@ onUnmounted(() => {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .ticket-detail__comment,
 .ticket-detail__history-entry {
-  padding: 0.75rem;
+  padding: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
 }
@@ -509,50 +402,50 @@ onUnmounted(() => {
 .ticket-detail__comment-meta,
 .ticket-detail__history-meta {
   color: var(--color-text-muted);
-  font-size: 0.85rem;
-  margin: 0 0 0.25rem;
+  font-size: var(--font-size-sm);
+  margin: 0 0 var(--space-1);
 }
 
 .ticket-detail__comment-actions,
 .ticket-detail__attachment-actions {
   display: flex;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+  gap: var(--space-2);
+  margin-block-start: var(--space-2);
 }
 
 .ticket-detail__attachment {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0.75rem;
+  gap: var(--space-4);
+  padding: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   flex-wrap: wrap;
 }
 
 .ticket-detail__attachment-name {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .ticket-detail__hint {
   color: var(--color-text-muted);
-  font-size: 0.85rem;
+  font-size: var(--font-size-sm);
 }
 
 .ticket-detail__upload {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-3);
+  margin-block-end: var(--space-5);
   flex-wrap: wrap;
 }
 
 .ticket-detail__history-field {
-  font-weight: 600;
-  margin: 0 0 0.25rem;
+  font-weight: var(--font-weight-semibold);
+  margin: 0 0 var(--space-1);
 }
 
 .ticket-detail__history-change {
-  margin: 0 0 0.25rem;
+  margin: 0 0 var(--space-1);
 }
 </style>

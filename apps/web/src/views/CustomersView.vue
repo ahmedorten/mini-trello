@@ -1,20 +1,25 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useCustomersStore } from '@/stores/customers';
 import { CUSTOMER_STATUSES, CUSTOMER_TYPES, type CustomerStatus, type CustomerType } from '@/api/customers';
+import AppStateBlock from '@/components/AppStateBlock.vue';
+import AppBadge from '@/components/AppBadge.vue';
+import AppPagination from '@/components/AppPagination.vue';
+import AppIcon from '@/components/AppIcon.vue';
 
 const auth = useAuthStore();
 const customers = useCustomersStore();
+const { t } = useI18n();
 
-function statusLabel(status: CustomerStatus): string {
-  return status.charAt(0) + status.slice(1).toLowerCase();
-}
-
-function typeLabel(type: CustomerType): string {
-  return type.charAt(0) + type.slice(1).toLowerCase();
-}
+const STATUS_TONE: Record<CustomerStatus, 'ok' | 'accent' | 'neutral'> = {
+  ACTIVE: 'ok',
+  PROSPECT: 'accent',
+  INACTIVE: 'neutral',
+  ARCHIVED: 'neutral',
+};
 
 // --- filters -------------------------------------------------------------
 
@@ -45,16 +50,8 @@ function onTypeFilterChange(event: Event): void {
   customers.setTypeFilter((event.target as HTMLSelectElement).value as CustomerType | '');
 }
 
-function previousPage(): void {
-  if (customers.meta && customers.filters.page > 1) {
-    customers.setPage(customers.filters.page - 1);
-  }
-}
-
-function nextPage(): void {
-  if (customers.meta && customers.filters.page < customers.meta.totalPages) {
-    customers.setPage(customers.filters.page + 1);
-  }
+function onPageChange(page: number): void {
+  customers.setPage(page);
 }
 
 onMounted(() => {
@@ -65,61 +62,65 @@ onMounted(() => {
 <template>
   <section>
     <header class="customers__header">
-      <h1>Customers</h1>
+      <h1>{{ t('customer.list.title') }}</h1>
       <RouterLink v-if="auth.can('customers:write')" to="/customers/new" class="customers__create">
-        Create customer
+        <AppIcon name="plus" :size="16" />
+        {{ t('customer.list.createCustomer') }}
       </RouterLink>
     </header>
 
     <form class="customers__filters" @submit.prevent>
       <label>
-        Search
-        <input v-model="searchTerm" type="search" placeholder="Name, company, email or phone">
+        {{ t('common.search') }}
+        <input v-model="searchTerm" type="search" :placeholder="t('customer.list.searchPlaceholder')">
       </label>
 
       <label>
-        Status
+        {{ t('customer.field.status') }}
         <select @change="onStatusFilterChange">
-          <option value="">All statuses</option>
+          <option value="">{{ t('customer.list.allStatuses') }}</option>
           <option v-for="status in CUSTOMER_STATUSES" :key="status" :value="status">
-            {{ statusLabel(status) }}
+            {{ t(`customer.status.${status}`) }}
           </option>
         </select>
       </label>
 
       <label>
-        Type
+        {{ t('customer.field.type') }}
         <select @change="onTypeFilterChange">
-          <option value="">All types</option>
+          <option value="">{{ t('customer.list.allTypes') }}</option>
           <option v-for="type in CUSTOMER_TYPES" :key="type" :value="type">
-            {{ typeLabel(type) }}
+            {{ t(`customer.type.${type}`) }}
           </option>
         </select>
       </label>
     </form>
 
-    <p v-if="customers.isLoading && !customers.items.length">Loading customers…</p>
+    <AppStateBlock v-if="customers.isLoading && !customers.items.length" variant="loading" :message="t('customer.list.loading')" />
 
-    <div v-else-if="customers.error && !customers.items.length" role="alert" class="customers__error">
-      {{ customers.error }}
-    </div>
+    <AppStateBlock
+      v-else-if="customers.error && !customers.items.length"
+      variant="error"
+      :message="customers.error"
+      class="customers__error"
+    />
 
-    <p v-else-if="!customers.items.length">No customers match these filters.</p>
+    <AppStateBlock v-else-if="!customers.items.length" variant="empty" :message="t('customer.list.empty')" />
 
     <template v-else>
       <div class="customers__table-wrap">
         <table class="customers__table">
-          <caption class="sr-only">Customers</caption>
+          <caption class="sr-only">{{ t('customer.list.caption') }}</caption>
           <thead>
             <tr>
-              <th scope="col">Name</th>
-              <th scope="col">Type</th>
-              <th scope="col">Email</th>
-              <th scope="col">Phone</th>
-              <th scope="col">City</th>
-              <th scope="col">Status</th>
-              <th scope="col">Notes/Files</th>
-              <th scope="col">Actions</th>
+              <th scope="col">{{ t('customer.field.name') }}</th>
+              <th scope="col">{{ t('customer.field.type') }}</th>
+              <th scope="col">{{ t('customer.field.email') }}</th>
+              <th scope="col">{{ t('customer.field.phone') }}</th>
+              <th scope="col">{{ t('customer.field.city') }}</th>
+              <th scope="col">{{ t('customer.field.status') }}</th>
+              <th scope="col">{{ t('customer.field.notesFiles') }}</th>
+              <th scope="col">{{ t('common.actions') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -127,23 +128,18 @@ onMounted(() => {
               <td>
                 <RouterLink :to="`/customers/${customer.id}`">{{ customer.name }}</RouterLink>
               </td>
-              <td>{{ typeLabel(customer.type) }}</td>
-              <td>{{ customer.email ?? '—' }}</td>
-              <td>{{ customer.phone ?? '—' }}</td>
+              <td>{{ t(`customer.type.${customer.type}`) }}</td>
+              <td><span dir="ltr">{{ customer.email ?? '—' }}</span></td>
+              <td><span dir="ltr">{{ customer.phone ?? '—' }}</span></td>
               <td>{{ customer.city ?? '—' }}</td>
               <td>
-                <span
-                  class="customers__badge"
-                  :class="'customers__badge--' + customer.status.toLowerCase()"
-                >
-                  {{ statusLabel(customer.status) }}
-                </span>
+                <AppBadge :tone="STATUS_TONE[customer.status]">{{ t(`customer.status.${customer.status}`) }}</AppBadge>
               </td>
               <td>{{ customer.counts.notes }} / {{ customer.counts.attachments }}</td>
               <td class="customers__actions">
-                <RouterLink :to="`/customers/${customer.id}`">View</RouterLink>
+                <RouterLink :to="`/customers/${customer.id}`">{{ t('common.view') }}</RouterLink>
                 <RouterLink v-if="auth.can('customers:write')" :to="`/customers/${customer.id}/edit`">
-                  Edit
+                  {{ t('common.edit') }}
                 </RouterLink>
               </td>
             </tr>
@@ -152,19 +148,13 @@ onMounted(() => {
       </div>
 
       <div class="customers__pagination">
-        <button type="button" :disabled="!customers.meta || customers.meta.page <= 1" @click="previousPage">
-          Previous
-        </button>
-        <span v-if="customers.meta">
-          Page {{ customers.meta.page }} of {{ customers.meta.totalPages }} — {{ customers.meta.total }} total
-        </span>
-        <button
-          type="button"
-          :disabled="!customers.meta || customers.meta.page >= customers.meta.totalPages"
-          @click="nextPage"
-        >
-          Next
-        </button>
+        <AppPagination
+          v-if="customers.meta"
+          :page="customers.meta.page"
+          :total-pages="customers.meta.totalPages"
+          :total="customers.meta.total"
+          @change="onPageChange"
+        />
       </div>
     </template>
   </section>
@@ -175,39 +165,38 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1.5rem;
+  margin-block-end: var(--space-5);
 }
 
 .customers__create {
-  padding: 0.5rem 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
   border-radius: var(--radius);
   background: var(--color-accent);
-  color: #ffffff;
+  color: var(--color-on-accent);
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
 }
 
 .customers__filters {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-4);
+  margin-block-end: var(--space-5);
 }
 
 .customers__filters label {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 
 .customers__error {
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--color-error) 10%, white);
-  border: 1px solid var(--color-error);
-  color: var(--color-error);
-  margin-bottom: 1rem;
+  margin-block-end: var(--space-4);
 }
 
 .customers__table-wrap {
@@ -215,7 +204,7 @@ onMounted(() => {
 }
 
 .customers__table {
-  width: 100%;
+  inline-size: 100%;
   border-collapse: collapse;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -224,53 +213,14 @@ onMounted(() => {
 
 .customers__table th,
 .customers__table td {
-  text-align: left;
-  padding: 0.6rem 0.75rem;
-  border-bottom: 1px solid var(--color-border);
+  text-align: start;
+  padding: var(--space-3) var(--space-3);
+  border-block-end: 1px solid var(--color-border);
 }
 
 .customers__actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   flex-wrap: wrap;
-}
-
-.customers__pagination {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.customers__badge {
-  display: inline-block;
-  padding: 0.15rem 0.6rem;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  border: 1px solid var(--color-border);
-}
-
-.customers__badge--active {
-  background: color-mix(in srgb, var(--color-ok) 12%, white);
-  border-color: var(--color-ok);
-  color: var(--color-ok);
-}
-
-.customers__badge--prospect {
-  background: color-mix(in srgb, var(--color-accent) 12%, white);
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-}
-
-.customers__badge--inactive {
-  background: color-mix(in srgb, var(--color-text-muted) 12%, white);
-  border-color: var(--color-text-muted);
-  color: var(--color-text-muted);
-}
-
-.customers__badge--archived {
-  background: color-mix(in srgb, var(--color-border) 40%, white);
-  border-color: var(--color-border);
-  color: var(--color-text-muted);
 }
 </style>

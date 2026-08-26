@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createRouter, createWebHistory } from 'vue-router';
 import { reactive } from 'vue';
+import { createPinia } from 'pinia';
 import CustomersView from './CustomersView.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useCustomersStore } from '@/stores/customers';
@@ -85,7 +86,7 @@ async function mountWithRouter() {
   router.push('/customers');
   await router.isReady();
 
-  return mount(CustomersView, { global: { plugins: [router] } });
+  return mount(CustomersView, { global: { plugins: [router, createPinia()] } });
 }
 
 describe('CustomersView', () => {

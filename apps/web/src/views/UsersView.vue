@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useUsersStore } from '@/stores/users';
 import type { UserSummary } from '@/api/users';
+import AppStateBlock from '@/components/AppStateBlock.vue';
+import AppPagination from '@/components/AppPagination.vue';
+import AppBadge from '@/components/AppBadge.vue';
+import AppButton from '@/components/AppButton.vue';
 
 const auth = useAuthStore();
 const users = useUsersStore();
+const { t, d } = useI18n();
 
 const isSystemAdministrator = computed(() => auth.user?.roles.includes('system-administrator') ?? false);
 
@@ -53,16 +59,8 @@ function onStatusFilterChange(event: Event): void {
   users.setStatusFilter(value);
 }
 
-function previousPage(): void {
-  if (users.meta && users.filters.page > 1) {
-    users.setPage(users.filters.page - 1);
-  }
-}
-
-function nextPage(): void {
-  if (users.meta && users.filters.page < users.meta.totalPages) {
-    users.setPage(users.filters.page + 1);
-  }
+function onPageChange(page: number): void {
+  users.setPage(page);
 }
 
 // --- create ----------------------------------------------------------------
@@ -190,7 +188,7 @@ async function submitReset(): Promise<void> {
 // --- status ----------------------------------------------------------------
 
 async function deactivate(user: UserSummary): Promise<void> {
-  if (window.confirm(`Deactivate ${user.fullName}? They will be signed out everywhere.`)) {
+  if (window.confirm(t('user.action.deactivateConfirm', { name: user.fullName }))) {
     await users.setStatus(user.id, false);
   }
 }
@@ -208,20 +206,22 @@ onMounted(() => {
 <template>
   <section>
     <header class="users__header">
-      <h1>Users</h1>
-      <button v-if="auth.can('users:write')" type="button" @click="openCreate">Create user</button>
+      <h1>{{ t('user.list.title') }}</h1>
+      <AppButton v-if="auth.can('users:write')" variant="primary" icon="plus" @click="openCreate">
+        {{ t('user.list.createUser') }}
+      </AppButton>
     </header>
 
     <form class="users__filters" @submit.prevent>
       <label>
-        Search
-        <input v-model="searchTerm" type="search" placeholder="Name or email">
+        {{ t('common.search') }}
+        <input v-model="searchTerm" type="search" :placeholder="t('user.list.searchPlaceholder')">
       </label>
 
       <label>
-        Role
+        {{ t('user.field.roles') }}
         <select @change="onRoleFilterChange">
-          <option value="">All roles</option>
+          <option value="">{{ t('user.list.allRoles') }}</option>
           <option v-for="role in users.roles" :key="role.key" :value="role.key">
             {{ role.name }}
           </option>
@@ -229,43 +229,43 @@ onMounted(() => {
       </label>
 
       <label>
-        Status
+        {{ t('user.field.status') }}
         <select @change="onStatusFilterChange">
-          <option value="">All</option>
-          <option value="true">Active</option>
-          <option value="false">Inactive</option>
+          <option value="">{{ t('user.list.all') }}</option>
+          <option value="true">{{ t('user.status.active') }}</option>
+          <option value="false">{{ t('user.status.inactive') }}</option>
         </select>
       </label>
     </form>
 
     <div v-if="showCreateForm" class="users__panel">
-      <h2>Create user</h2>
+      <h2>{{ t('user.form.createTitle') }}</h2>
       <form @submit.prevent="submitCreate">
         <div v-if="users.error" role="alert" class="users__error">{{ users.error }}</div>
 
         <label>
-          Email
+          {{ t('user.field.email') }}
           <input v-model="createForm.email" type="email" required>
         </label>
         <label>
-          Full name
+          {{ t('user.field.fullName') }}
           <input v-model="createForm.fullName" type="text" required>
         </label>
         <label>
-          Password
+          {{ t('user.field.password') }}
           <input v-model="createForm.password" type="password" required>
         </label>
         <label>
-          Department
+          {{ t('user.field.department') }}
           <select v-model="createForm.departmentId">
-            <option value="">No department</option>
+            <option value="">{{ t('user.form.noDepartment') }}</option>
             <option v-for="department in users.departments" :key="department.id" :value="department.id">
               {{ department.name }}
             </option>
           </select>
         </label>
         <fieldset>
-          <legend>Roles</legend>
+          <legend>{{ t('user.form.rolesLegend') }}</legend>
           <label v-for="role in availableRoles" :key="role.key" class="users__checkbox">
             <input v-model="createForm.roleKeys" type="checkbox" :value="role.key">
             {{ role.name }}
@@ -273,62 +273,69 @@ onMounted(() => {
         </fieldset>
 
         <div class="users__panel-actions">
-          <button type="submit" :disabled="createForm.roleKeys.length === 0">Save</button>
-          <button type="button" @click="cancelCreate">Cancel</button>
+          <button type="submit" :disabled="createForm.roleKeys.length === 0">{{ t('common.save') }}</button>
+          <button type="button" @click="cancelCreate">{{ t('common.cancel') }}</button>
         </div>
       </form>
     </div>
 
-    <p v-if="users.isLoading && !users.items.length">Loading users…</p>
+    <AppStateBlock v-if="users.isLoading && !users.items.length" variant="loading" :message="t('user.list.loading')" />
 
-    <div v-else-if="users.error && !users.items.length" role="alert" class="users__error">
-      {{ users.error }}
-    </div>
+    <AppStateBlock
+      v-else-if="users.error && !users.items.length"
+      variant="error"
+      :message="users.error"
+      class="users__error-block"
+    />
 
-    <p v-else-if="!users.items.length">No users match these filters.</p>
+    <AppStateBlock v-else-if="!users.items.length" variant="empty" :message="t('user.list.empty')" />
 
     <template v-else>
       <div class="users__table-wrap">
         <table class="users__table">
-          <caption class="sr-only">User accounts</caption>
+          <caption class="sr-only">{{ t('user.list.caption') }}</caption>
           <thead>
             <tr>
-              <th scope="col">Name</th>
-              <th scope="col">Email</th>
-              <th scope="col">Roles</th>
-              <th scope="col">Department</th>
-              <th scope="col">Status</th>
-              <th scope="col">Last login</th>
-              <th scope="col">Actions</th>
+              <th scope="col">{{ t('user.field.name') }}</th>
+              <th scope="col">{{ t('user.field.email') }}</th>
+              <th scope="col">{{ t('user.field.roles') }}</th>
+              <th scope="col">{{ t('user.field.department') }}</th>
+              <th scope="col">{{ t('user.field.status') }}</th>
+              <th scope="col">{{ t('user.field.lastLogin') }}</th>
+              <th scope="col">{{ t('common.actions') }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="user in users.items" :key="user.id">
               <td>{{ user.fullName }}</td>
-              <td>{{ user.email }}</td>
+              <td><span dir="ltr">{{ user.email }}</span></td>
               <td>{{ roleNames(user.roles) }}</td>
               <td>{{ user.department?.name ?? '—' }}</td>
-              <td>{{ user.isActive ? 'Active' : 'Inactive' }}</td>
-              <td>{{ user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : 'Never' }}</td>
+              <td>
+                <AppBadge :tone="user.isActive ? 'ok' : 'neutral'">
+                  {{ user.isActive ? t('user.status.active') : t('user.status.inactive') }}
+                </AppBadge>
+              </td>
+              <td>{{ user.lastLoginAt ? d(new Date(user.lastLoginAt), 'long') : t('user.status.never') }}</td>
               <td class="users__actions">
-                <button v-if="auth.can('users:write')" type="button" @click="openEdit(user)">Edit</button>
-                <button v-if="auth.can('roles:assign')" type="button" @click="openRoles(user)">Roles</button>
+                <button v-if="auth.can('users:write')" type="button" @click="openEdit(user)">{{ t('common.edit') }}</button>
+                <button v-if="auth.can('roles:assign')" type="button" @click="openRoles(user)">{{ t('user.action.roles') }}</button>
                 <button
                   v-if="auth.can('users:deactivate') && !isOwnRow(user) && user.isActive"
                   type="button"
                   @click="deactivate(user)"
                 >
-                  Deactivate
+                  {{ t('user.action.deactivate') }}
                 </button>
                 <button
                   v-if="auth.can('users:deactivate') && !isOwnRow(user) && !user.isActive"
                   type="button"
                   @click="reactivate(user)"
                 >
-                  Reactivate
+                  {{ t('user.action.reactivate') }}
                 </button>
                 <button v-if="auth.can('users:write')" type="button" @click="openReset(user)">
-                  Reset password
+                  {{ t('user.action.resetPassword') }}
                 </button>
               </td>
             </tr>
@@ -337,39 +344,33 @@ onMounted(() => {
       </div>
 
       <div class="users__pagination">
-        <button type="button" :disabled="!users.meta || users.meta.page <= 1" @click="previousPage">
-          Previous
-        </button>
-        <span v-if="users.meta">
-          Page {{ users.meta.page }} of {{ users.meta.totalPages }} — {{ users.meta.total }} total
-        </span>
-        <button
-          type="button"
-          :disabled="!users.meta || users.meta.page >= users.meta.totalPages"
-          @click="nextPage"
-        >
-          Next
-        </button>
+        <AppPagination
+          v-if="users.meta"
+          :page="users.meta.page"
+          :total-pages="users.meta.totalPages"
+          :total="users.meta.total"
+          @change="onPageChange"
+        />
       </div>
     </template>
 
     <div v-if="editingUser" class="users__panel">
-      <h2>Edit {{ editingUser.fullName }}</h2>
+      <h2>{{ t('user.form.editTitle', { name: editingUser.fullName }) }}</h2>
       <form @submit.prevent="submitEdit">
         <div v-if="users.error" role="alert" class="users__error">{{ users.error }}</div>
 
         <label>
-          Full name
+          {{ t('user.field.fullName') }}
           <input v-model="editForm.fullName" type="text" required>
         </label>
         <label>
-          Email
+          {{ t('user.field.email') }}
           <input v-model="editForm.email" type="email" required>
         </label>
         <label>
-          Department
+          {{ t('user.field.department') }}
           <select v-model="editForm.departmentId">
-            <option value="">No department</option>
+            <option value="">{{ t('user.form.noDepartment') }}</option>
             <option v-for="department in users.departments" :key="department.id" :value="department.id">
               {{ department.name }}
             </option>
@@ -377,14 +378,14 @@ onMounted(() => {
         </label>
 
         <div class="users__panel-actions">
-          <button type="submit">Save</button>
-          <button type="button" @click="cancelEdit">Cancel</button>
+          <button type="submit">{{ t('common.save') }}</button>
+          <button type="button" @click="cancelEdit">{{ t('common.cancel') }}</button>
         </div>
       </form>
     </div>
 
     <div v-if="rolesEditingUser" class="users__panel">
-      <h2>Roles for {{ rolesEditingUser.fullName }}</h2>
+      <h2>{{ t('user.form.rolesTitle', { name: rolesEditingUser.fullName }) }}</h2>
       <form @submit.prevent="submitRoles">
         <div v-if="users.error" role="alert" class="users__error">{{ users.error }}</div>
 
@@ -394,29 +395,26 @@ onMounted(() => {
         </label>
 
         <div class="users__panel-actions">
-          <button type="submit">Save</button>
-          <button type="button" @click="cancelRoles">Cancel</button>
+          <button type="submit">{{ t('common.save') }}</button>
+          <button type="button" @click="cancelRoles">{{ t('common.cancel') }}</button>
         </div>
       </form>
     </div>
 
     <div v-if="resettingUser" class="users__panel">
-      <h2>Reset password for {{ resettingUser.fullName }}</h2>
-      <p>
-        {{ resettingUser.fullName }} must change this password at next sign-in, and every existing
-        session for that account will be signed out immediately.
-      </p>
+      <h2>{{ t('user.form.resetTitle', { name: resettingUser.fullName }) }}</h2>
+      <p>{{ t('user.form.resetHint', { name: resettingUser.fullName }) }}</p>
       <form @submit.prevent="submitReset">
         <div v-if="users.error" role="alert" class="users__error">{{ users.error }}</div>
 
         <label>
-          New password
+          {{ t('user.field.newPassword') }}
           <input v-model="resetForm.password" type="password" required>
         </label>
 
         <div class="users__panel-actions">
-          <button type="submit">Save</button>
-          <button type="button" @click="cancelReset">Cancel</button>
+          <button type="submit">{{ t('common.save') }}</button>
+          <button type="button" @click="cancelReset">{{ t('common.cancel') }}</button>
         </div>
       </form>
     </div>
@@ -428,30 +426,34 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1.5rem;
+  margin-block-end: var(--space-5);
 }
 
 .users__filters {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-4);
+  margin-block-end: var(--space-5);
 }
 
 .users__filters label {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 
 .users__error {
-  padding: 0.75rem 1rem;
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--color-error) 10%, white);
+  background: var(--color-error-soft);
   border: 1px solid var(--color-error);
   color: var(--color-error);
-  margin-bottom: 1rem;
+  margin-block-end: var(--space-4);
+}
+
+.users__error-block {
+  margin-block-end: var(--space-4);
 }
 
 .users__table-wrap {
@@ -459,7 +461,7 @@ onMounted(() => {
 }
 
 .users__table {
-  width: 100%;
+  inline-size: 100%;
   border-collapse: collapse;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -468,27 +470,20 @@ onMounted(() => {
 
 .users__table th,
 .users__table td {
-  text-align: left;
-  padding: 0.6rem 0.75rem;
-  border-bottom: 1px solid var(--color-border);
+  text-align: start;
+  padding: var(--space-3) var(--space-3);
+  border-block-end: 1px solid var(--color-border);
 }
 
 .users__actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 
-.users__pagination {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
 .users__panel {
-  margin-top: 1.5rem;
-  padding: 1.5rem;
+  margin-block-start: var(--space-5);
+  padding: var(--space-5);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
@@ -497,23 +492,23 @@ onMounted(() => {
 .users__panel form {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .users__panel label {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .users__checkbox {
   flex-direction: row !important;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .users__panel-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 </style>

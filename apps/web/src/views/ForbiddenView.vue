@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
+import { useI18n } from 'vue-i18n';
+import AppStateBlock from '@/components/AppStateBlock.vue';
+
+const { t } = useI18n();
 </script>
 
 <template>
   <section>
-    <h1>Not allowed</h1>
-    <p>Your account does not have permission to view this page.</p>
-    <p><RouterLink to="/">Back to the dashboard</RouterLink></p>
+    <AppStateBlock variant="error" :message="t('error.forbidden')">
+      <template #actions>
+        <RouterLink to="/">{{ t('common.backToDashboard') }}</RouterLink>
+      </template>
+    </AppStateBlock>
   </section>
 </template>

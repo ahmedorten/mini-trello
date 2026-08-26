@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { useCustomersStore } from '@/stores/customers';
 import {
   CUSTOMER_STATUSES,
@@ -14,6 +15,7 @@ import {
 const route = useRoute();
 const router = useRouter();
 const customers = useCustomersStore();
+const { t } = useI18n();
 
 const customerId = computed(() => (route.params.id as string | undefined) ?? null);
 const isEdit = computed(() => customerId.value !== null);
@@ -33,14 +35,6 @@ const form = reactive({
   assignedAgentId: '',
   status: 'PROSPECT' as CustomerStatus,
 });
-
-function statusLabel(status: CustomerStatus): string {
-  return status.charAt(0) + status.slice(1).toLowerCase();
-}
-
-function typeLabel(type: CustomerType): string {
-  return type.charAt(0) + type.slice(1).toLowerCase();
-}
 
 onMounted(async () => {
   void customers.loadAgents();
@@ -126,79 +120,79 @@ function cancel(): void {
 
 <template>
   <section>
-    <h1>{{ isEdit ? 'Edit customer' : 'New customer' }}</h1>
+    <h1>{{ isEdit ? t('customer.form.editTitle') : t('customer.form.newTitle') }}</h1>
 
     <form class="customer-form" @submit.prevent="submit">
       <div v-if="customers.error" role="alert" class="customer-form__error">{{ customers.error }}</div>
 
       <fieldset>
-        <legend>Identity</legend>
+        <legend>{{ t('customer.form.section.identity') }}</legend>
         <label>
-          Name
+          {{ t('customer.field.name') }}
           <input v-model="form.name" type="text" required minlength="2">
         </label>
         <label>
-          Type
+          {{ t('customer.field.type') }}
           <select v-model="form.type">
-            <option v-for="type in CUSTOMER_TYPES" :key="type" :value="type">{{ typeLabel(type) }}</option>
+            <option v-for="type in CUSTOMER_TYPES" :key="type" :value="type">{{ t(`customer.type.${type}`) }}</option>
           </select>
         </label>
         <label>
-          Company name
+          {{ t('customer.field.companyName') }}
           <input v-model="form.companyName" type="text">
         </label>
         <label v-if="!isEdit">
-          Status
+          {{ t('customer.field.status') }}
           <select v-model="form.status">
             <option v-for="status in CUSTOMER_STATUSES" :key="status" :value="status">
-              {{ statusLabel(status) }}
+              {{ t(`customer.status.${status}`) }}
             </option>
           </select>
         </label>
       </fieldset>
 
       <fieldset>
-        <legend>Contact</legend>
+        <legend>{{ t('customer.form.section.contact') }}</legend>
         <label>
-          Email
+          {{ t('customer.field.email') }}
           <input v-model="form.email" type="email">
         </label>
         <label>
-          Phone
+          {{ t('customer.field.phone') }}
           <input v-model="form.phone" type="text">
         </label>
         <label>
-          Alternate phone
+          {{ t('customer.field.alternatePhone') }}
           <input v-model="form.alternatePhone" type="text">
         </label>
         <label>
-          Address line 1
+          {{ t('customer.field.addressLine1') }}
           <input v-model="form.addressLine1" type="text">
         </label>
         <label>
-          Address line 2
+          {{ t('customer.field.addressLine2') }}
           <input v-model="form.addressLine2" type="text">
         </label>
         <label>
-          City
+          {{ t('customer.field.city') }}
           <input v-model="form.city" type="text">
         </label>
         <label>
-          Country
+          {{ t('customer.field.country') }}
           <input v-model="form.country" type="text">
         </label>
         <label>
-          Postal code
+          {{ t('customer.field.postalCode') }}
           <input v-model="form.postalCode" type="text">
         </label>
       </fieldset>
 
       <fieldset>
-        <legend>Assignment</legend>
+        <legend>{{ t('customer.form.section.assignment') }}</legend>
         <label>
-          Assigned agent
+          {{ t('customer.field.assignedAgent') }}
           <select v-model="form.assignedAgentId">
-            <option value="">Unassigned</option>
+            <option value="">{{ t('common.unassigned') }}</option>
             <option v-for="agent in customers.agents" :key="agent.id" :value="agent.id">
               {{ agent.fullName }}
             </option>
@@ -207,8 +201,8 @@ function cancel(): void {
       </fieldset>
 
       <div class="customer-form__actions">
-        <button type="submit" :disabled="customers.isSaving || form.name.trim().length < 2">Save</button>
-        <button type="button" @click="cancel">Cancel</button>
+        <button type="submit" :disabled="customers.isSaving || form.name.trim().length < 2">{{ t('common.save') }}</button>
+        <button type="button" @click="cancel">{{ t('common.cancel') }}</button>
       </div>
     </form>
   </section>
@@ -218,15 +212,15 @@ function cancel(): void {
 .customer-form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  max-width: 640px;
+  gap: var(--space-5);
+  max-inline-size: 40rem;
 }
 
 .customer-form fieldset {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding: 1rem;
+  gap: var(--space-3);
+  padding: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
 }
@@ -234,19 +228,19 @@ function cancel(): void {
 .customer-form label {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .customer-form__error {
-  padding: 0.75rem 1rem;
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--color-error) 10%, white);
+  background: var(--color-error-soft);
   border: 1px solid var(--color-error);
   color: var(--color-error);
 }
 
 .customer-form__actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 </style>
