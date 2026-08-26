@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 
 const settings: { key: string; value: string }[] = [
   { key: 'app.name', value: 'Customer Support CRM' },
-  { key: 'app.schemaVersion', value: '1' },
+  { key: 'app.schemaVersion', value: '2' },
   { key: 'app.seededBy', value: 'prisma/seed.ts' },
 ];
 
@@ -60,6 +60,13 @@ const permissions: { key: string; description: string }[] = [
   { key: 'tickets:manage', description: 'Delete a ticket comment or attachment created by someone else' },
   { key: 'ticket-comments:write', description: 'Add, edit, and delete ticket comments' },
   { key: 'ticket-attachments:write', description: 'Upload and delete ticket attachments' },
+  { key: 'dashboard:read', description: 'View the agent dashboard and its ticket insights' },
+  { key: 'tasks:read', description: 'View agent tasks and reminders' },
+  { key: 'tasks:write', description: 'Create, update, and delete your own agent tasks' },
+  { key: 'tasks:manage', description: 'Update or delete an agent task assigned to someone else' },
+  { key: 'quick-replies:read', description: 'View the quick-reply catalogue' },
+  { key: 'quick-replies:write', description: 'Create, update, and delete quick replies' },
+  { key: 'tickets:assign', description: 'Assign a ticket to a user other than yourself' },
 ];
 
 const roles: { key: string; name: string; description: string; permissions: string[] }[] = [
@@ -95,6 +102,13 @@ const roles: { key: string; name: string; description: string; permissions: stri
       'tickets:manage',
       'ticket-comments:write',
       'ticket-attachments:write',
+      'dashboard:read',
+      'tasks:read',
+      'tasks:write',
+      'tasks:manage',
+      'quick-replies:read',
+      'quick-replies:write',
+      'tickets:assign',
     ],
   },
   {
@@ -116,6 +130,12 @@ const roles: { key: string; name: string; description: string; permissions: stri
       'tickets:write',
       'ticket-comments:write',
       'ticket-attachments:write',
+      'dashboard:read',
+      'tasks:read',
+      'tasks:write',
+      'tasks:manage',
+      'quick-replies:read',
+      'tickets:assign',
     ],
   },
   {
@@ -134,6 +154,10 @@ const roles: { key: string; name: string; description: string; permissions: stri
       'tickets:write',
       'ticket-comments:write',
       'ticket-attachments:write',
+      'dashboard:read',
+      'tasks:read',
+      'tasks:write',
+      'quick-replies:read',
     ],
   },
   {
@@ -146,7 +170,14 @@ const roles: { key: string; name: string; description: string; permissions: stri
     key: 'reporting-user',
     name: 'Reporting User',
     description: 'Read-only analytics access.',
-    permissions: ['reports:read', 'departments:read', 'branches:read', 'customers:read', 'tickets:read'],
+    permissions: [
+      'reports:read',
+      'departments:read',
+      'branches:read',
+      'customers:read',
+      'tickets:read',
+      'dashboard:read',
+    ],
   },
 ];
 
@@ -157,6 +188,25 @@ const departments: { key: string; name: string }[] = [
 
 const branches: { key: string; name: string; city: string }[] = [
   { key: 'head-office', name: 'Head Office', city: 'Cairo' },
+];
+
+const quickReplies: {
+  key: string;
+  locale: string;
+  title: string;
+  body: string;
+  channel: string | null;
+}[] = [
+  { key: 'greeting', locale: 'en', title: 'Greeting', body: 'Hello, thank you for contacting Customer Support. How can I help you today?', channel: null },
+  { key: 'greeting', locale: 'ar', title: 'ترحيب', body: 'مرحباً، شكراً لتواصلك مع خدمة العملاء. كيف يمكنني مساعدتك؟', channel: null },
+  { key: 'investigating', locale: 'en', title: 'Investigating', body: 'Thank you for the details. I am looking into this now and will update you shortly.', channel: null },
+  { key: 'investigating', locale: 'ar', title: 'جاري الفحص', body: 'شكراً على التفاصيل. أقوم بمراجعة الأمر الآن وسأوافيك بالتحديث قريباً.', channel: null },
+  { key: 'need-more-info', locale: 'en', title: 'Need more information', body: 'Could you please share a screenshot and the exact time the issue happened?', channel: null },
+  { key: 'need-more-info', locale: 'ar', title: 'نحتاج معلومات إضافية', body: 'هل يمكنك إرسال صورة للشاشة والوقت الذي حدثت فيه المشكلة؟', channel: null },
+  { key: 'resolved', locale: 'en', title: 'Resolved', body: 'This has now been resolved. Please let us know if anything else comes up.', channel: null },
+  { key: 'resolved', locale: 'ar', title: 'تم الحل', body: 'تم حل المشكلة. برجاء إخبارنا إذا واجهت أي أمر آخر.', channel: null },
+  { key: 'sms-ack', locale: 'en', title: 'SMS acknowledgement', body: 'We received your message and a support agent will reply shortly.', channel: 'SMS' },
+  { key: 'sms-ack', locale: 'ar', title: 'إشعار استلام SMS', body: 'تم استلام رسالتك وسيقوم أحد موظفي الدعم بالرد قريباً.', channel: 'SMS' },
 ];
 
 async function seedBootstrapAdmin(): Promise<void> {
@@ -233,6 +283,14 @@ export async function main(): Promise<void> {
     });
   }
 
+  for (const reply of quickReplies) {
+    await prisma.quickReply.upsert({
+      where: { key_locale: { key: reply.key, locale: reply.locale } },
+      update: { title: reply.title, body: reply.body, channel: reply.channel as never },
+      create: { ...reply, channel: reply.channel as never },
+    });
+  }
+
   for (const role of roles) {
     const record = await prisma.role.upsert({
       where: { key: role.key },
@@ -258,16 +316,17 @@ export async function main(): Promise<void> {
 
   await seedBootstrapAdmin();
 
-  const [settingCount, permissionCount, roleCount, userCount] = await Promise.all([
+  const [settingCount, permissionCount, roleCount, userCount, quickReplyCount] = await Promise.all([
     prisma.appSetting.count(),
     prisma.permission.count(),
     prisma.role.count(),
     prisma.user.count(),
+    prisma.quickReply.count(),
   ]);
 
   console.log(
     `Seed complete. app_settings: ${settingCount}, permissions: ${permissionCount}, ` +
-      `roles: ${roleCount}, users: ${userCount}`,
+      `roles: ${roleCount}, users: ${userCount}, quick_replies: ${quickReplyCount}`,
   );
 }
 

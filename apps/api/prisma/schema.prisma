@@ -22,12 +22,18 @@ enum CustomerType {
   COMPANY
 }
 
+/// How a touchpoint reached us. `CHAT` is live chat (kept for rows written by
+/// work item 3); `WEB_FORM` is a public web-form submission. Extended in work
+/// item 5 to cover the five channels the agent workspace surfaces.
 enum InteractionChannel {
   PHONE
   EMAIL
   CHAT
   MEETING
   OTHER
+  WHATSAPP
+  SMS
+  WEB_FORM
 }
 
 enum InteractionDirection {
@@ -58,6 +64,16 @@ enum TicketStatus {
   ON_HOLD
   RESOLVED
   CLOSED
+}
+
+/// Lifecycle of an agent's own to-do. A closed set that drives dashboard
+/// counters and badge colour, so an enum rather than a seeded lookup row —
+/// the same reasoning that made TicketStatus an enum in work item 4.
+enum AgentTaskStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
 }
 
 /// Key/value application settings. Deliberately infrastructure-only:
@@ -137,6 +153,10 @@ model User {
   ticketComments       TicketComment[]    @relation("TicketCommentAuthor")
   ticketAttachments    TicketAttachment[] @relation("TicketAttachmentUploader")
   ticketHistoryEntries TicketHistory[]    @relation("TicketHistoryActor")
+
+  agentTasks        AgentTask[]  @relation("AgentTaskAssignee")
+  createdAgentTasks AgentTask[]  @relation("AgentTaskCreatedBy")
+  quickReplies      QuickReply[] @relation("QuickReplyCreatedBy")
 
   @@index([departmentId])
   @@index([branchId])
@@ -245,6 +265,7 @@ model Customer {
   attachments  CustomerAttachment[]
   interactions CustomerInteraction[]
   tickets      Ticket[]
+  agentTasks   AgentTask[]
 
   @@index([status])
   @@index([assignedAgentId])
@@ -303,11 +324,14 @@ model CustomerInteraction {
   body        String?
   occurredAt  DateTime             @map("occurred_at")
   createdAt   DateTime             @default(now()) @map("created_at")
+  ticketId    String?              @map("ticket_id") @db.Uuid
 
   customer  Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
   createdBy User     @relation("CustomerInteractionAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+  ticket    Ticket?  @relation(fields: [ticketId], references: [id], onDelete: SetNull)
 
   @@index([customerId, occurredAt])
+  @@index([ticketId, occurredAt])
   @@map("customer_interactions")
 }
 
@@ -333,9 +357,11 @@ model Ticket {
   assignedAgent User?    @relation("TicketAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: SetNull)
   createdBy     User?    @relation("TicketCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
-  comments    TicketComment[]
-  attachments TicketAttachment[]
-  history     TicketHistory[]
+  comments     TicketComment[]
+  attachments  TicketAttachment[]
+  history      TicketHistory[]
+  interactions CustomerInteraction[]
+  agentTasks   AgentTask[]
 
   @@index([status])
   @@index([priority])
@@ -403,4 +429,58 @@ model TicketHistory {
 
   @@index([ticketId, createdAt])
   @@map("ticket_history")
+}
+
+/// A support agent's own to-do or reminder, optionally hung off a ticket and/or
+/// a customer. `remindAt` is a timestamp the UI reads to surface a task early —
+/// NOTHING schedules, pushes, or emails from it (Product rule 4). `dueAt` is
+/// what "overdue" means for a task; a ticket's overdue-ness is derived instead
+/// (Product rule 3), so the two concepts deliberately do not share a column.
+model AgentTask {
+  id          String          @id @default(uuid()) @db.Uuid
+  title       String
+  notes       String?
+  status      AgentTaskStatus @default(OPEN)
+  dueAt       DateTime?       @map("due_at")
+  remindAt    DateTime?       @map("remind_at")
+  completedAt DateTime?       @map("completed_at")
+  assigneeId  String          @map("assignee_id") @db.Uuid
+  createdById String          @map("created_by_id") @db.Uuid
+  ticketId    String?         @map("ticket_id") @db.Uuid
+  customerId  String?         @map("customer_id") @db.Uuid
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  assignee  User      @relation("AgentTaskAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
+  createdBy User      @relation("AgentTaskCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  ticket    Ticket?   @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  customer  Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([assigneeId, status])
+  @@index([assigneeId, dueAt])
+  @@index([ticketId])
+  @@index([customerId])
+  @@map("agent_tasks")
+}
+
+/// A canned response an agent can drop into a comment or an outbound
+/// interaction. Keyed by (key, locale) so a third language needs a seed row,
+/// not a migration (Product rule 7). `channel: null` means "any channel".
+model QuickReply {
+  id          String              @id @default(uuid()) @db.Uuid
+  key         String
+  locale      String
+  title       String
+  body        String
+  channel     InteractionChannel?
+  isActive    Boolean             @default(true) @map("is_active")
+  createdById String?             @map("created_by_id") @db.Uuid
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  createdBy User? @relation("QuickReplyCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([key, locale])
+  @@index([locale, isActive])
+  @@map("quick_replies")
 }

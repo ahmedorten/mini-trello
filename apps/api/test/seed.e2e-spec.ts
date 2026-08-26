@@ -40,9 +40,9 @@ describe('Seed (e2e)', () => {
     expect(countAfter).toBe(3);
   });
 
-  it('creates exactly 21 permissions', async () => {
+  it('creates exactly 28 permissions', async () => {
     const count = await prisma.permission.count();
-    expect(count).toBe(21);
+    expect(count).toBe(28);
   });
 
   it('contains all six customer-management permission keys', async () => {
@@ -78,6 +78,27 @@ describe('Seed (e2e)', () => {
     expect(keys).toHaveLength(5);
   });
 
+  it('contains all seven new agent-workspace permission keys', async () => {
+    const keys = await prisma.permission.findMany({
+      where: {
+        key: {
+          in: [
+            'dashboard:read',
+            'tasks:read',
+            'tasks:write',
+            'tasks:manage',
+            'quick-replies:read',
+            'quick-replies:write',
+            'tickets:assign',
+          ],
+        },
+      },
+      select: { key: true },
+    });
+
+    expect(keys).toHaveLength(7);
+  });
+
   it('creates exactly 6 roles matching the named slugs', async () => {
     const roles = await prisma.role.findMany({ select: { key: true } });
     const keys = roles.map((role) => role.key).sort();
@@ -111,12 +132,22 @@ describe('Seed (e2e)', () => {
       }),
     ]);
 
-    expect(systemAdministrator._count.permissions).toBe(21);
+    expect(systemAdministrator._count.permissions).toBe(28);
     expect(customer._count.permissions).toBe(0);
-    expect(supportAgent._count.permissions).toBe(11);
+    expect(supportAgent._count.permissions).toBe(15);
   });
 
-  it('holds system-administrator to all 21 permission keys', async () => {
+  it("holds system-administrator's grant count equal to the total permission count", async () => {
+    const role = await prisma.role.findUniqueOrThrow({
+      where: { key: 'system-administrator' },
+      include: { _count: { select: { permissions: true } } },
+    });
+    const permissionCount = await prisma.permission.count();
+
+    expect(role._count.permissions).toBe(permissionCount);
+  });
+
+  it('holds system-administrator to all permission keys', async () => {
     const role = await prisma.role.findUniqueOrThrow({
       where: { key: 'system-administrator' },
       include: { permissions: { include: { permission: { select: { key: true } } } } },
@@ -204,6 +235,116 @@ describe('Seed (e2e)', () => {
     expect(keys).not.toContain('tickets:write');
   });
 
+  it('grants crm-manager all seven new agent-workspace permission keys', async () => {
+    const role = await prisma.role.findUniqueOrThrow({
+      where: { key: 'crm-manager' },
+      include: { permissions: { include: { permission: { select: { key: true } } } } },
+    });
+
+    const keys = role.permissions.map((rp) => rp.permission.key);
+
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        'dashboard:read',
+        'tasks:read',
+        'tasks:write',
+        'tasks:manage',
+        'quick-replies:read',
+        'quick-replies:write',
+        'tickets:assign',
+      ]),
+    );
+  });
+
+  it('grants support-supervisor the new keys but not quick-replies:write', async () => {
+    const role = await prisma.role.findUniqueOrThrow({
+      where: { key: 'support-supervisor' },
+      include: { permissions: { include: { permission: { select: { key: true } } } } },
+    });
+
+    const keys = role.permissions.map((rp) => rp.permission.key);
+
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        'dashboard:read',
+        'tasks:read',
+        'tasks:write',
+        'tasks:manage',
+        'quick-replies:read',
+        'tickets:assign',
+      ]),
+    );
+    expect(keys).not.toContain('quick-replies:write');
+  });
+
+  it('grants support-agent exactly dashboard:read, tasks:read, tasks:write, quick-replies:read from the new set', async () => {
+    const role = await prisma.role.findUniqueOrThrow({
+      where: { key: 'support-agent' },
+      include: { permissions: { include: { permission: { select: { key: true } } } } },
+    });
+
+    const keys = role.permissions.map((rp) => rp.permission.key);
+    const newKeys = [
+      'dashboard:read',
+      'tasks:read',
+      'tasks:write',
+      'tasks:manage',
+      'quick-replies:read',
+      'quick-replies:write',
+      'tickets:assign',
+    ];
+    const grantedNewKeys = newKeys.filter((key) => keys.includes(key)).sort();
+
+    expect(grantedNewKeys).toEqual(['dashboard:read', 'quick-replies:read', 'tasks:read', 'tasks:write'].sort());
+    expect(keys).not.toContain('tasks:manage');
+    expect(keys).not.toContain('tickets:assign');
+    expect(keys).not.toContain('quick-replies:write');
+  });
+
+  it('holds reporting-user to dashboard:read and no other new agent-workspace key', async () => {
+    const role = await prisma.role.findUniqueOrThrow({
+      where: { key: 'reporting-user' },
+      include: { permissions: { include: { permission: { select: { key: true } } } } },
+    });
+
+    const keys = role.permissions.map((rp) => rp.permission.key);
+
+    expect(keys).toContain('dashboard:read');
+    expect(keys).not.toContain('tasks:read');
+    expect(keys).not.toContain('tasks:write');
+    expect(keys).not.toContain('tasks:manage');
+    expect(keys).not.toContain('quick-replies:read');
+    expect(keys).not.toContain('quick-replies:write');
+    expect(keys).not.toContain('tickets:assign');
+  });
+
+  it('still grants customer none of the new agent-workspace keys', async () => {
+    const role = await prisma.role.findUniqueOrThrow({
+      where: { key: 'customer' },
+      include: { _count: { select: { permissions: true } } },
+    });
+
+    expect(role._count.permissions).toBe(0);
+  });
+
+  it('seeds at least ten quick replies, every key present in both en and ar', async () => {
+    const replies = await prisma.quickReply.findMany({ select: { key: true, locale: true } });
+
+    expect(replies.length).toBeGreaterThanOrEqual(10);
+
+    const keys = [...new Set(replies.map((reply) => reply.key))];
+    for (const key of keys) {
+      const locales = replies.filter((reply) => reply.key === key).map((reply) => reply.locale);
+      expect(locales).toEqual(expect.arrayContaining(['en', 'ar']));
+    }
+  });
+
+  it("sets app.schemaVersion to '2'", async () => {
+    const setting = await prisma.appSetting.findUnique({ where: { key: 'app.schemaVersion' } });
+
+    expect(setting?.value).toBe('2');
+  });
+
   it('creates 2 departments and 1 branch', async () => {
     const [departmentCount, branchCount] = await Promise.all([
       prisma.department.count(),
@@ -244,6 +385,7 @@ describe('Seed (e2e)', () => {
       usersBefore,
       refreshTokensBefore,
       customersBefore,
+      quickRepliesBefore,
     ] = await Promise.all([
       prisma.permission.count(),
       prisma.role.count(),
@@ -252,7 +394,14 @@ describe('Seed (e2e)', () => {
       prisma.user.count(),
       prisma.refreshToken.count(),
       prisma.customer.count(),
+      prisma.quickReply.count(),
     ]);
+
+    const supportAgentBefore = await prisma.role.findUniqueOrThrow({
+      where: { key: 'support-agent' },
+      include: { permissions: { include: { permission: { select: { key: true } } } } },
+    });
+    const supportAgentKeysBefore = supportAgentBefore.permissions.map((rp) => rp.permission.key).sort();
 
     await expect(main()).resolves.not.toThrow();
 
@@ -267,5 +416,15 @@ describe('Seed (e2e)', () => {
     await expect(prisma.refreshToken.count()).resolves.toBe(refreshTokensBefore);
     // The seed invents no customer rows in any environment (see Product rules).
     await expect(prisma.customer.count()).resolves.toBe(customersBefore);
+    // Re-running the seed re-syncs quick-reply bodies but must not duplicate rows.
+    await expect(prisma.quickReply.count()).resolves.toBe(quickRepliesBefore);
+
+    const supportAgentAfter = await prisma.role.findUniqueOrThrow({
+      where: { key: 'support-agent' },
+      include: { permissions: { include: { permission: { select: { key: true } } } } },
+    });
+    const supportAgentKeysAfter = supportAgentAfter.permissions.map((rp) => rp.permission.key).sort();
+
+    expect(supportAgentKeysAfter).toEqual(supportAgentKeysBefore);
   });
 });
