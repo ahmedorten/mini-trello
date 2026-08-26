@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { ARCHIVE_PERMISSION, CustomersService, USER_REF_SELECT } from './customers.service';
 import { CreateInteractionDto, InteractionResponseDto } from './dto/interaction.dto';
+import { ListInteractionsQueryDto } from './dto/list-interactions-query.dto';
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
 
@@ -24,6 +25,8 @@ const INTERACTION_SELECT = {
   createdAt: true,
   createdById: true,
   createdBy: { select: USER_REF_SELECT },
+  ticketId: true,
+  ticket: { select: { id: true, subject: true } },
 } satisfies Prisma.CustomerInteractionSelect;
 
 type SelectedInteraction = Prisma.CustomerInteractionGetPayload<{
@@ -39,12 +42,23 @@ export class InteractionsService {
     private readonly customersService: CustomersService,
   ) {}
 
-  async list(customerId: string): Promise<InteractionResponseDto[]> {
+  async list(
+    customerId: string,
+    query: ListInteractionsQueryDto = {},
+  ): Promise<InteractionResponseDto[]> {
     await this.customersService.assertExists(customerId);
 
+    const where: Prisma.CustomerInteractionWhereInput = { customerId };
+
+    if (query.channel) where.channel = query.channel;
+    if (query.direction) where.direction = query.direction;
+    if (query.ticketId) where.ticketId = query.ticketId;
+
     const interactions = await this.prisma.customerInteraction.findMany({
-      where: { customerId },
+      where,
       select: INTERACTION_SELECT,
+      // Both keys: occurredAt is agent-supplied and two interactions can share
+      // it, so createdAt is the tiebreak that makes the timeline deterministic.
       orderBy: [{ occurredAt: 'desc' }, { createdAt: 'desc' }],
     });
 
@@ -64,6 +78,10 @@ export class InteractionsService {
       throw new BadRequestException('occurredAt cannot be in the future.');
     }
 
+    if (dto.ticketId) {
+      await this.assertTicketBelongsToCustomer(customerId, dto.ticketId);
+    }
+
     const created = await this.prisma.customerInteraction.create({
       data: {
         customerId,
@@ -73,6 +91,7 @@ export class InteractionsService {
         subject: dto.subject.trim(),
         body: dto.body?.trim(),
         occurredAt,
+        ticketId: dto.ticketId,
       },
       select: INTERACTION_SELECT,
     });
@@ -106,6 +125,26 @@ export class InteractionsService {
     this.logger.log({ actorId: caller.id, customerId, interactionId: id }, 'Interaction deleted');
   }
 
+  /**
+   * Product rule 4. The schema cannot express "the ticket's customer equals the
+   * interaction's customer", so this is the only thing standing between the
+   * timeline and a silently wrong attribution.
+   */
+  private async assertTicketBelongsToCustomer(customerId: string, ticketId: string): Promise<void> {
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+      select: { id: true, customerId: true },
+    });
+
+    if (!ticket) {
+      throw new BadRequestException('Unknown ticketId.');
+    }
+
+    if (ticket.customerId !== customerId) {
+      throw new BadRequestException('That ticket belongs to a different customer.');
+    }
+  }
+
   private static toResponse(interaction: SelectedInteraction): InteractionResponseDto {
     return {
       id: interaction.id,
@@ -117,6 +156,8 @@ export class InteractionsService {
       occurredAt: interaction.occurredAt.toISOString(),
       createdBy: interaction.createdBy,
       createdAt: interaction.createdAt.toISOString(),
+      ticketId: interaction.ticketId,
+      ticket: interaction.ticket,
     };
   }
 }

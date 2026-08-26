@@ -106,6 +106,9 @@ describe('Customer children — notes, attachments, interactions (e2e)', () => {
   });
 
   afterAll(async () => {
+    // Ticket.customer is onDelete: Restrict, so tickets created by the ticketId
+    // filter/cross-customer tests must be removed before their customers.
+    await prisma.ticket.deleteMany({ where: { subject: { startsWith: 'E2E ' } } });
     await prisma.customer.deleteMany({ where: { name: { startsWith: 'E2E ' } } });
     await prisma.user.deleteMany({ where: { email: { endsWith: '@e2e.local' } } });
     await prisma.$disconnect();
@@ -283,6 +286,132 @@ describe('Customer children — notes, attachments, interactions (e2e)', () => {
 
       const ids = res.body.map((interaction: { id: string }) => interaction.id);
       expect(ids.indexOf(interactionId)).toBeLessThan(ids.indexOf(earlier.body.id));
+    });
+
+    it('no query params returns the same body shape it returned before this story (the Story-11 contract proof)', async () => {
+      const res = await request(server())
+        .get(`/api/customers/${customerId}/interactions`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(Array.isArray(res.body)).toBe(true);
+      const row = res.body.find((r: { id: string }) => r.id === interactionId);
+      expect(row).toEqual(
+        expect.objectContaining({
+          id: interactionId,
+          customerId,
+          channel: 'PHONE',
+          direction: 'OUTBOUND',
+          subject: 'E2E Past Interaction',
+        }),
+      );
+    });
+
+    it('?channel=EMAIL filters', async () => {
+      const emailInteraction = await request(server())
+        .post(`/api/customers/${customerId}/interactions`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          channel: 'EMAIL',
+          direction: 'OUTBOUND',
+          subject: 'E2E Email Filter Interaction',
+          occurredAt: new Date().toISOString(),
+        })
+        .expect(201);
+
+      const res = await request(server())
+        .get(`/api/customers/${customerId}/interactions`)
+        .query({ channel: 'EMAIL' })
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(res.body.every((r: { channel: string }) => r.channel === 'EMAIL')).toBe(true);
+      expect(res.body.some((r: { id: string }) => r.id === emailInteraction.body.id)).toBe(true);
+    });
+
+    it('?ticketId= filters, an unknown ticketId returns [] not 404, and a cross-customer ticketId on POST → 400', async () => {
+      const ticket = await request(server())
+        .post('/api/tickets')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          customerId,
+          subject: 'E2E Interactions Ticket Filter Fixture',
+          description: 'Fixture ticket for the ticketId filter test',
+        })
+        .expect(201);
+
+      const linked = await request(server())
+        .post(`/api/customers/${customerId}/interactions`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          channel: 'CHAT',
+          direction: 'OUTBOUND',
+          subject: 'E2E Ticket-linked Interaction',
+          occurredAt: new Date().toISOString(),
+          ticketId: ticket.body.id,
+        })
+        .expect(201);
+
+      const filtered = await request(server())
+        .get(`/api/customers/${customerId}/interactions`)
+        .query({ ticketId: ticket.body.id })
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+      expect(filtered.body).toHaveLength(1);
+      expect(filtered.body[0].id).toBe(linked.body.id);
+
+      const unknownFiltered = await request(server())
+        .get(`/api/customers/${customerId}/interactions`)
+        .query({ ticketId: randomUUID() })
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+      expect(unknownFiltered.body).toEqual([]);
+
+      const otherCustomer = await request(server())
+        .post('/api/customers')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: 'E2E Cross-customer Ticket Owner' })
+        .expect(201);
+
+      await request(server())
+        .post(`/api/customers/${otherCustomer.body.id}/interactions`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          channel: 'CHAT',
+          direction: 'OUTBOUND',
+          subject: 'Should 400 — cross-customer ticket',
+          occurredAt: new Date().toISOString(),
+          ticketId: ticket.body.id,
+        })
+        .expect(400);
+    });
+
+    it('all eight channels are accepted on POST', async () => {
+      const channels = [
+        'PHONE',
+        'EMAIL',
+        'CHAT',
+        'MEETING',
+        'OTHER',
+        'WHATSAPP',
+        'SMS',
+        'WEB_FORM',
+      ];
+
+      for (const channel of channels) {
+        const res = await request(server())
+          .post(`/api/customers/${customerId}/interactions`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            channel,
+            direction: 'OUTBOUND',
+            subject: `E2E Channel ${channel}`,
+            occurredAt: new Date().toISOString(),
+          })
+          .expect(201);
+
+        expect(res.body.channel).toBe(channel);
+      }
     });
 
     it('DELETE → 204', async () => {

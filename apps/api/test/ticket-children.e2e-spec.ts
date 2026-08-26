@@ -22,6 +22,7 @@ describe('Ticket children — comments, attachments, history (e2e)', () => {
   let adminToken: string;
   let adminId: string;
   let ticketId: string;
+  let ticketCustomerId: string;
 
   const server = () => app.getHttpServer();
 
@@ -96,6 +97,7 @@ describe('Ticket children — comments, attachments, history (e2e)', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ name: 'E2E Ticket Children Fixture Customer' })
       .expect(201);
+    ticketCustomerId = customer.body.id;
 
     const ticket = await request(server())
       .post('/api/tickets')
@@ -134,6 +136,11 @@ describe('Ticket children — comments, attachments, history (e2e)', () => {
 
       await request(server())
         .get(`/api/tickets/${randomTicketId}/history`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(404);
+
+      await request(server())
+        .get(`/api/tickets/${randomTicketId}/interactions`)
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(404);
     });
@@ -410,6 +417,124 @@ describe('Ticket children — comments, attachments, history (e2e)', () => {
         .delete(`/api/tickets/${ticketId}/history/${randomUUID()}`)
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(404);
+    });
+  });
+
+  describe('interactions', () => {
+    let interactionId: string;
+
+    it('POST then GET round-trip', async () => {
+      const created = await request(server())
+        .post(`/api/tickets/${ticketId}/interactions`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          channel: 'PHONE',
+          direction: 'OUTBOUND',
+          subject: 'E2E Ticket Interaction',
+          occurredAt: new Date(Date.now() - 60_000).toISOString(),
+        })
+        .expect(201);
+
+      interactionId = created.body.id;
+      expect(created.body.ticketId).toBe(ticketId);
+      expect(created.body.ticket).toEqual(
+        expect.objectContaining({ id: ticketId }),
+      );
+
+      const listed = await request(server())
+        .get(`/api/tickets/${ticketId}/interactions`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+      expect(listed.body.some((row: { id: string }) => row.id === interactionId)).toBe(true);
+    });
+
+    it('the created interaction also appears in GET /api/customers/:customerId/interactions with a non-null ticket ref', async () => {
+      const res = await request(server())
+        .get(`/api/customers/${ticketCustomerId}/interactions`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      const found = res.body.find((row: { id: string }) => row.id === interactionId);
+      expect(found).toBeDefined();
+      expect(found.ticket).toEqual(expect.objectContaining({ id: ticketId }));
+    });
+
+    it('includeCustomerHistory=true returns an interaction logged directly against the customer with ticket: null', async () => {
+      const directlyLogged = await request(server())
+        .post(`/api/customers/${ticketCustomerId}/interactions`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          channel: 'EMAIL',
+          direction: 'INBOUND',
+          subject: 'E2E Customer-only Interaction',
+          occurredAt: new Date(Date.now() - 30_000).toISOString(),
+        })
+        .expect(201);
+
+      const withoutHistory = await request(server())
+        .get(`/api/tickets/${ticketId}/interactions`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+      expect(
+        withoutHistory.body.some((row: { id: string }) => row.id === directlyLogged.body.id),
+      ).toBe(false);
+
+      const withHistory = await request(server())
+        .get(`/api/tickets/${ticketId}/interactions`)
+        .query({ includeCustomerHistory: true })
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      const found = withHistory.body.find(
+        (row: { id: string }) => row.id === directlyLogged.body.id,
+      );
+      expect(found).toBeDefined();
+      expect(found.ticket).toBeNull();
+    });
+
+    it('POST with customerId in the body → 400', async () => {
+      await request(server())
+        .post(`/api/tickets/${ticketId}/interactions`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          customerId: ticketCustomerId,
+          channel: 'EMAIL',
+          direction: 'OUTBOUND',
+          subject: 'Should reject customerId',
+          occurredAt: new Date().toISOString(),
+        })
+        .expect(400);
+    });
+
+    it('POST with a future occurredAt → 400', async () => {
+      await request(server())
+        .post(`/api/tickets/${ticketId}/interactions`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          channel: 'EMAIL',
+          direction: 'OUTBOUND',
+          subject: 'Should reject future occurredAt',
+          occurredAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        })
+        .expect(400);
+    });
+
+    it('POST as a reporting-user (no interactions:write) → 403', async () => {
+      const reportingUser = await createUser(adminToken, { roleKeys: ['reporting-user'] }).expect(
+        201,
+      );
+      const reportingToken = await login(reportingUser.body.email, FIXTURE_PASSWORD);
+
+      await request(server())
+        .post(`/api/tickets/${ticketId}/interactions`)
+        .set('Authorization', `Bearer ${reportingToken}`)
+        .send({
+          channel: 'EMAIL',
+          direction: 'OUTBOUND',
+          subject: 'Should reject',
+          occurredAt: new Date().toISOString(),
+        })
+        .expect(403);
     });
   });
 

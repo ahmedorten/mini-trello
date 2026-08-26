@@ -117,6 +117,9 @@ describe('Dashboard (e2e)', () => {
   });
 
   afterAll(async () => {
+    // AgentTask.assignee/createdBy are onDelete: Restrict, so tasks created by
+    // the tasksDueSoon test must be removed before their owning fixture users.
+    await prisma.agentTask.deleteMany({ where: { title: { startsWith: 'E2E ' } } });
     await prisma.ticket.deleteMany({ where: { subject: { startsWith: 'E2E ' } } });
     await prisma.customer.deleteMany({ where: { name: { startsWith: 'E2E ' } } });
     await prisma.user.deleteMany({ where: { email: { endsWith: '@e2e.local' } } });
@@ -251,6 +254,35 @@ describe('Dashboard (e2e)', () => {
       .expect(200);
 
     expect(res.body.tasksDueSoon).toEqual([]);
+  });
+
+  it('after creating two open tasks for the caller, tasksDueSoon has length 2, ordered by dueAt ascending with the undated one last', async () => {
+    const agent = await createUser(adminToken, { roleKeys: ['support-agent'] }).expect(201);
+    const agentToken = await login(agent.body.email, FIXTURE_PASSWORD);
+
+    await request(server())
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${agentToken}`)
+      .send({
+        title: `E2E Task Due Soon ${randomUUID()}`,
+        dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      })
+      .expect(201);
+
+    await request(server())
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${agentToken}`)
+      .send({ title: `E2E Task No Due Date ${randomUUID()}` })
+      .expect(201);
+
+    const res = await request(server())
+      .get('/api/dashboard/agent')
+      .set('Authorization', `Bearer ${agentToken}`)
+      .expect(200);
+
+    expect(res.body.tasksDueSoon).toHaveLength(2);
+    expect(res.body.tasksDueSoon[0].dueAt).not.toBeNull();
+    expect(res.body.tasksDueSoon[1].dueAt).toBeNull();
   });
 
   it('a ticket assigned to a fixture agent appears in that agent’s focusTickets and increments counts.assigned/counts.open', async () => {

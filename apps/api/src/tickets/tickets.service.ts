@@ -17,7 +17,9 @@ import { PaginatedTicketsDto, TicketResponseDto } from './dto/ticket-response.dt
 export const TICKET_MANAGE_PERMISSION = 'tickets:manage';
 export const TICKET_ASSIGN_PERMISSION = 'tickets:assign';
 
-const CUSTOMER_REF_SELECT = {
+/** Exported so other modules (agent tasks) reuse it verbatim instead of
+ *  duplicating the projection. */
+export const CUSTOMER_REF_SELECT = {
   id: true,
   name: true,
   email: true,

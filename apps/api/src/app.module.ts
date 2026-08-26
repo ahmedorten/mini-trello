@@ -11,6 +11,8 @@ import { OrgModule } from './org/org.module';
 import { CustomersModule } from './customers/customers.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { TasksModule } from './tasks/tasks.module';
+import { QuickRepliesModule } from './quick-replies/quick-replies.module';
 import { validateEnv } from './config/env.validation';
 
 @Module({
@@ -59,6 +61,8 @@ import { validateEnv } from './config/env.validation';
     CustomersModule,
     TicketsModule,
     DashboardModule,
+    TasksModule,
+    QuickRepliesModule,
     HealthModule,
   ],
 })

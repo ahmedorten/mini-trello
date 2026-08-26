@@ -8,6 +8,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -25,6 +26,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { CreateInteractionDto, InteractionResponseDto } from './dto/interaction.dto';
+import { ListInteractionsQueryDto } from './dto/list-interactions-query.dto';
 import { InteractionsService } from './interactions.service';
 
 @ApiTags('customer-interactions')
@@ -40,8 +42,11 @@ export class InteractionsController {
   @ApiOperation({ summary: 'List a customer’s interaction timeline, newest-occurred first' })
   @ApiOkResponse({ type: [InteractionResponseDto] })
   @ApiNotFoundResponse({ description: 'No such customer.' })
-  list(@Param('customerId', ParseUUIDPipe) customerId: string): Promise<InteractionResponseDto[]> {
-    return this.interactionsService.list(customerId);
+  list(
+    @Param('customerId', ParseUUIDPipe) customerId: string,
+    @Query() query: ListInteractionsQueryDto,
+  ): Promise<InteractionResponseDto[]> {
+    return this.interactionsService.list(customerId, query);
   }
 
   @Post()

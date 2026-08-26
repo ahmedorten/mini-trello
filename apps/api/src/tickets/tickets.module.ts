@@ -10,6 +10,8 @@ import { TicketAttachmentsController } from './ticket-attachments.controller';
 import { TicketAttachmentsService } from './ticket-attachments.service';
 import { TicketHistoryController } from './ticket-history.controller';
 import { TicketHistoryService } from './ticket-history.service';
+import { TicketInteractionsController } from './ticket-interactions.controller';
+import { TicketInteractionsService } from './ticket-interactions.service';
 
 @Module({
   imports: [AuthModule, CustomersModule],
@@ -18,6 +20,7 @@ import { TicketHistoryService } from './ticket-history.service';
     TicketCommentsController,
     TicketAttachmentsController,
     TicketHistoryController,
+    TicketInteractionsController,
   ],
   providers: [
     TicketsService,
@@ -25,6 +28,7 @@ import { TicketHistoryService } from './ticket-history.service';
     TicketAttachmentsService,
     TicketHistoryService,
     AttachmentStorageService,
+    TicketInteractionsService,
   ],
   exports: [TicketsService],
 })

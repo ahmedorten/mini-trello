@@ -1,6 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { InteractionChannel, InteractionDirection } from '@prisma/client';
-import { IsDateString, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { UserRefDto } from './customer-response.dto';
 
 export class CreateInteractionDto {
@@ -30,6 +38,26 @@ export class CreateInteractionDto {
   })
   @IsDateString()
   occurredAt!: string;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description:
+      'Optional ticket this interaction belongs to. MUST belong to the same ' +
+      'customer — a mismatch is a 400 (Product rule 4).',
+  })
+  @IsOptional()
+  @IsUUID()
+  ticketId?: string;
+}
+
+/** The ticket an interaction is attributed to. Two fields: enough to render a
+ *  link, nothing that duplicates TicketResponseDto. */
+export class InteractionTicketRefDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'Cannot log in after password reset' })
+  subject!: string;
 }
 
 export class InteractionResponseDto {
@@ -59,4 +87,10 @@ export class InteractionResponseDto {
 
   @ApiProperty({ format: 'date-time' })
   createdAt!: string;
+
+  @ApiProperty({ required: false, nullable: true, format: 'uuid' })
+  ticketId!: string | null;
+
+  @ApiProperty({ type: () => InteractionTicketRefDto, nullable: true })
+  ticket!: InteractionTicketRefDto | null;
 }
