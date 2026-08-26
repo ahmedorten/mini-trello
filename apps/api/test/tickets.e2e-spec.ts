@@ -352,6 +352,295 @@ describe('Tickets (e2e)', () => {
     });
   });
 
+  describe('scope filter on GET /api/tickets', () => {
+    let agentAId: string;
+    let agentAToken: string;
+    let agentBId: string;
+    let mineTicketId: string;
+    let unassignedTicketId: string;
+    let othersTicketId: string;
+
+    beforeAll(async () => {
+      const agentA = await createUser(adminToken, { roleKeys: ['support-agent'] }).expect(201);
+      agentAId = agentA.body.id;
+      agentAToken = await login(agentA.body.email, FIXTURE_PASSWORD);
+
+      const agentB = await createUser(adminToken, { roleKeys: ['support-agent'] }).expect(201);
+      agentBId = agentB.body.id;
+
+      const mine = await createTicket(adminToken, { assignedAgentId: agentAId }).expect(201);
+      mineTicketId = mine.body.id;
+
+      const unassigned = await createTicket(adminToken).expect(201);
+      unassignedTicketId = unassigned.body.id;
+
+      const others = await createTicket(adminToken, { assignedAgentId: agentBId }).expect(201);
+      othersTicketId = others.body.id;
+    });
+
+    function ids(items: { id: string }[]): string[] {
+      return items.map((item) => item.id);
+    }
+
+    it('scope=mine returns only tickets assigned to the caller', async () => {
+      const res = await request(server())
+        .get('/api/tickets')
+        .query({ scope: 'mine', pageSize: 100 })
+        .set('Authorization', `Bearer ${agentAToken}`)
+        .expect(200);
+
+      expect(ids(res.body.items)).toContain(mineTicketId);
+      expect(ids(res.body.items)).not.toContain(unassignedTicketId);
+      expect(ids(res.body.items)).not.toContain(othersTicketId);
+      expect(
+        res.body.items.every((item: { assignedAgent: { id: string } | null }) =>
+          item.assignedAgent?.id === agentAId,
+        ),
+      ).toBe(true);
+    });
+
+    it('scope=unassigned returns only unassigned tickets', async () => {
+      const res = await request(server())
+        .get('/api/tickets')
+        .query({ scope: 'unassigned', pageSize: 100 })
+        .set('Authorization', `Bearer ${agentAToken}`)
+        .expect(200);
+
+      expect(ids(res.body.items)).toContain(unassignedTicketId);
+      expect(ids(res.body.items)).not.toContain(mineTicketId);
+      expect(ids(res.body.items)).not.toContain(othersTicketId);
+      expect(
+        res.body.items.every(
+          (item: { assignedAgent: unknown }) => item.assignedAgent === null,
+        ),
+      ).toBe(true);
+    });
+
+    it('scope=workable returns the union of mine and unassigned', async () => {
+      const res = await request(server())
+        .get('/api/tickets')
+        .query({ scope: 'workable', pageSize: 100 })
+        .set('Authorization', `Bearer ${agentAToken}`)
+        .expect(200);
+
+      expect(ids(res.body.items)).toContain(mineTicketId);
+      expect(ids(res.body.items)).toContain(unassignedTicketId);
+      expect(ids(res.body.items)).not.toContain(othersTicketId);
+    });
+
+    it('scope=all and an omitted scope return identical bodies — the backward-compatibility proof', async () => {
+      const withAll = await request(server())
+        .get('/api/tickets')
+        .query({ scope: 'all', customerId: fixtureCustomerId, pageSize: 100 })
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      const withoutScope = await request(server())
+        .get('/api/tickets')
+        .query({ customerId: fixtureCustomerId, pageSize: 100 })
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(withoutScope.body).toEqual(withAll.body);
+    });
+
+    it('scope=workable together with search keeps both clauses', async () => {
+      const uniqueFragment = `Workable${randomUUID().slice(0, 8)}`;
+      const target = await createTicket(adminToken, {
+        assignedAgentId: agentAId,
+        subject: `E2E ${uniqueFragment} ticket`,
+      }).expect(201);
+
+      const unrelated = await createTicket(adminToken, { assignedAgentId: agentBId }).expect(201);
+
+      const res = await request(server())
+        .get('/api/tickets')
+        .query({ scope: 'workable', search: uniqueFragment, pageSize: 100 })
+        .set('Authorization', `Bearer ${agentAToken}`)
+        .expect(200);
+
+      expect(ids(res.body.items)).toContain(target.body.id);
+      expect(ids(res.body.items)).not.toContain(unrelated.body.id);
+    });
+  });
+
+  describe('PATCH /api/tickets/:id/assignment', () => {
+    it('as the administrator sets and clears the assignment, each adding a history entry', async () => {
+      const agent = await createUser(adminToken, { roleKeys: ['support-agent'] }).expect(201);
+      const created = await createTicket(adminToken).expect(201);
+
+      const assigned = await request(server())
+        .patch(`/api/tickets/${created.body.id}/assignment`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ assignedAgentId: agent.body.id })
+        .expect(200);
+      expect(assigned.body.assignedAgent?.id).toBe(agent.body.id);
+
+      const released = await request(server())
+        .patch(`/api/tickets/${created.body.id}/assignment`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ assignedAgentId: null })
+        .expect(200);
+      expect(released.body.assignedAgent).toBeNull();
+
+      const history = await request(server())
+        .get(`/api/tickets/${created.body.id}/history`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      const assignmentEntries = history.body.filter(
+        (entry: { field: string }) => entry.field === 'assignedAgentId',
+      );
+      expect(assignmentEntries).toHaveLength(2);
+    });
+
+    it('a repeat PATCH with the same value adds no further history entry', async () => {
+      const agent = await createUser(adminToken, { roleKeys: ['support-agent'] }).expect(201);
+      const created = await createTicket(adminToken, { assignedAgentId: agent.body.id }).expect(
+        201,
+      );
+
+      await request(server())
+        .patch(`/api/tickets/${created.body.id}/assignment`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ assignedAgentId: agent.body.id })
+        .expect(200);
+
+      const history = await request(server())
+        .get(`/api/tickets/${created.body.id}/history`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(
+        history.body.filter((entry: { field: string }) => entry.field === 'assignedAgentId'),
+      ).toHaveLength(0);
+    });
+
+    describe('as a support-agent (no tickets:assign)', () => {
+      let agentToken: string;
+      let agentId: string;
+      let otherAgentId: string;
+
+      beforeAll(async () => {
+        const agent = await createUser(adminToken, { roleKeys: ['support-agent'] }).expect(201);
+        agentId = agent.body.id;
+        agentToken = await login(agent.body.email, FIXTURE_PASSWORD);
+
+        const other = await createUser(adminToken, { roleKeys: ['support-agent'] }).expect(201);
+        otherAgentId = other.body.id;
+      });
+
+      it('claiming an unassigned ticket → 200', async () => {
+        const created = await createTicket(adminToken).expect(201);
+
+        const res = await request(server())
+          .patch(`/api/tickets/${created.body.id}/assignment`)
+          .set('Authorization', `Bearer ${agentToken}`)
+          .send({ assignedAgentId: agentId })
+          .expect(200);
+
+        expect(res.body.assignedAgent?.id).toBe(agentId);
+      });
+
+      it('assigning it to a second agent → 403', async () => {
+        const created = await createTicket(adminToken).expect(201);
+
+        await request(server())
+          .patch(`/api/tickets/${created.body.id}/assignment`)
+          .set('Authorization', `Bearer ${agentToken}`)
+          .send({ assignedAgentId: otherAgentId })
+          .expect(403);
+      });
+
+      it('releasing their own → 200', async () => {
+        const created = await createTicket(adminToken, { assignedAgentId: agentId }).expect(201);
+
+        const res = await request(server())
+          .patch(`/api/tickets/${created.body.id}/assignment`)
+          .set('Authorization', `Bearer ${agentToken}`)
+          .send({ assignedAgentId: null })
+          .expect(200);
+
+        expect(res.body.assignedAgent).toBeNull();
+      });
+
+      it("releasing one assigned to the second agent → 403", async () => {
+        const created = await createTicket(adminToken, { assignedAgentId: otherAgentId }).expect(
+          201,
+        );
+
+        await request(server())
+          .patch(`/api/tickets/${created.body.id}/assignment`)
+          .set('Authorization', `Bearer ${agentToken}`)
+          .send({ assignedAgentId: null })
+          .expect(403);
+      });
+
+      it('PATCH /api/tickets/:id with a colleague assignedAgentId → 403 (the bypass is closed)', async () => {
+        const created = await createTicket(adminToken).expect(201);
+
+        await request(server())
+          .patch(`/api/tickets/${created.body.id}`)
+          .set('Authorization', `Bearer ${agentToken}`)
+          .send({ assignedAgentId: otherAgentId })
+          .expect(403);
+      });
+    });
+
+    it('as a support-supervisor (holds tickets:assign), assigning to another agent → 200', async () => {
+      const supervisor = await createUser(adminToken, { roleKeys: ['support-supervisor'] }).expect(
+        201,
+      );
+      const supervisorToken = await login(supervisor.body.email, FIXTURE_PASSWORD);
+
+      const agent = await createUser(adminToken, { roleKeys: ['support-agent'] }).expect(201);
+      const created = await createTicket(adminToken).expect(201);
+
+      const res = await request(server())
+        .patch(`/api/tickets/${created.body.id}/assignment`)
+        .set('Authorization', `Bearer ${supervisorToken}`)
+        .send({ assignedAgentId: agent.body.id })
+        .expect(200);
+
+      expect(res.body.assignedAgent?.id).toBe(agent.body.id);
+    });
+
+    it('assignment to an inactive user → 400', async () => {
+      const agent = await createUser(adminToken, { roleKeys: ['support-agent'] }).expect(201);
+      await request(server())
+        .patch(`/api/users/${agent.body.id}/status`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ isActive: false })
+        .expect(200);
+
+      const created = await createTicket(adminToken).expect(201);
+
+      await request(server())
+        .patch(`/api/tickets/${created.body.id}/assignment`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ assignedAgentId: agent.body.id })
+        .expect(400);
+    });
+
+    it('assignment to an unknown uuid → 400', async () => {
+      const created = await createTicket(adminToken).expect(201);
+
+      await request(server())
+        .patch(`/api/tickets/${created.body.id}/assignment`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ assignedAgentId: randomUUID() })
+        .expect(400);
+    });
+
+    it('assignment on an unknown ticket id → 404', async () => {
+      await request(server())
+        .patch(`/api/tickets/${randomUUID()}/assignment`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ assignedAgentId: null })
+        .expect(404);
+    });
+  });
+
   describe('a zero-permission customer-role account', () => {
     it('gets 403 on every route', async () => {
       const customerUser = await createUser(adminToken, { roleKeys: ['customer'] }).expect(201);

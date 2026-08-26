@@ -10,6 +10,7 @@ import { UsersModule } from './users/users.module';
 import { OrgModule } from './org/org.module';
 import { CustomersModule } from './customers/customers.module';
 import { TicketsModule } from './tickets/tickets.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { validateEnv } from './config/env.validation';
 
 @Module({
@@ -57,6 +58,7 @@ import { validateEnv } from './config/env.validation';
     OrgModule,
     CustomersModule,
     TicketsModule,
+    DashboardModule,
     HealthModule,
   ],
 })

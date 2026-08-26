@@ -1,14 +1,21 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma, TicketStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { USER_REF_SELECT } from '../customers/customers.service';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
-import { ListTicketsQueryDto } from './dto/list-tickets-query.dto';
+import { ListTicketsQueryDto, TicketScope } from './dto/list-tickets-query.dto';
 import { PaginatedTicketsDto, TicketResponseDto } from './dto/ticket-response.dto';
 
 export const TICKET_MANAGE_PERMISSION = 'tickets:manage';
+export const TICKET_ASSIGN_PERMISSION = 'tickets:assign';
 
 const CUSTOMER_REF_SELECT = {
   id: true,
@@ -16,8 +23,9 @@ const CUSTOMER_REF_SELECT = {
   email: true,
 } satisfies Prisma.CustomerSelect;
 
-/** The ONLY projection used for ticket responses. */
-const TICKET_SELECT = {
+/** The ONLY projection used for ticket responses. Exported so DashboardModule
+ *  reuses it verbatim instead of duplicating the projection. */
+export const TICKET_SELECT = {
   id: true,
   subject: true,
   description: true,
@@ -32,7 +40,7 @@ const TICKET_SELECT = {
   _count: { select: { comments: true, attachments: true, history: true } },
 } satisfies Prisma.TicketSelect;
 
-type SelectedTicket = Prisma.TicketGetPayload<{ select: typeof TICKET_SELECT }>;
+export type SelectedTicket = Prisma.TicketGetPayload<{ select: typeof TICKET_SELECT }>;
 
 @Injectable()
 export class TicketsService {
@@ -40,7 +48,7 @@ export class TicketsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(query: ListTicketsQueryDto): Promise<PaginatedTicketsDto> {
+  async list(query: ListTicketsQueryDto, caller: AuthenticatedUser): Promise<PaginatedTicketsDto> {
     const where: Prisma.TicketWhereInput = {};
 
     if (query.search) {
@@ -55,6 +63,17 @@ export class TicketsService {
     if (query.status) where.status = query.status;
     if (query.assignedAgentId) where.assignedAgentId = query.assignedAgentId;
     if (query.customerId) where.customerId = query.customerId;
+
+    if (query.scope === TicketScope.Mine) {
+      where.assignedAgentId = caller.id;
+    } else if (query.scope === TicketScope.Unassigned) {
+      where.assignedAgentId = null;
+    } else if (query.scope === TicketScope.Workable) {
+      // AND, not OR-into-`where.OR`: `where.OR` may already hold the search
+      // clause (lines 46–51), and assigning over it would silently drop the
+      // search term. `AND` composes with whatever is already there.
+      where.AND = [{ OR: [{ assignedAgentId: caller.id }, { assignedAgentId: null }] }];
+    }
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.ticket.findMany({
@@ -91,6 +110,10 @@ export class TicketsService {
   async create(dto: CreateTicketDto, caller: AuthenticatedUser): Promise<TicketResponseDto> {
     await this.assertCustomerExists(dto.customerId);
     await this.assertAgentExists(dto.assignedAgentId);
+
+    if (dto.assignedAgentId !== undefined) {
+      this.assertMayAssign(dto.assignedAgentId ?? null, null, caller);
+    }
 
     const created = await this.prisma.ticket.create({
       data: {
@@ -132,6 +155,7 @@ export class TicketsService {
     // `undefined` reliably means "omitted", `null` means "explicit clear".
     if (dto.assignedAgentId !== undefined) {
       await this.assertAgentExists(dto.assignedAgentId ?? undefined);
+      this.assertMayAssign(dto.assignedAgentId ?? null, current.assignedAgentId, caller);
     }
 
     const data: Prisma.TicketUpdateInput = {};
@@ -235,6 +259,65 @@ export class TicketsService {
     return TicketsService.toResponse(updated as SelectedTicket);
   }
 
+  async assign(
+    id: string,
+    assignedAgentId: string | null,
+    caller: AuthenticatedUser,
+  ): Promise<TicketResponseDto> {
+    const current = await this.prisma.ticket.findUnique({
+      where: { id },
+      select: { id: true, assignedAgentId: true },
+    });
+
+    if (!current) {
+      throw new NotFoundException('Ticket not found.');
+    }
+
+    await this.assertAgentExists(assignedAgentId ?? undefined);
+    this.assertMayAssign(assignedAgentId, current.assignedAgentId, caller);
+
+    if (assignedAgentId === current.assignedAgentId) {
+      // A no-op reassignment must not write a history row. Return the ticket
+      // through the normal projection so the response shape never varies.
+      return this.findOne(id);
+    }
+
+    // Same ordering reasoning as update() and setStatus(): the history insert
+    // must run before the select that reports `_count.history`.
+    const results = await this.prisma.$transaction([
+      this.prisma.ticketHistory.createMany({
+        data: [
+          {
+            ticketId: id,
+            changedById: caller.id,
+            // The SAME field name update() writes (Product rule 7) — Story 16's
+            // History tab maps this literal to "Assigned agent".
+            field: 'assignedAgentId',
+            oldValue: current.assignedAgentId,
+            newValue: assignedAgentId,
+          },
+        ],
+      }),
+      this.prisma.ticket.update({
+        where: { id },
+        data: {
+          assignedAgent: assignedAgentId
+            ? { connect: { id: assignedAgentId } }
+            : { disconnect: true },
+        },
+        select: TICKET_SELECT,
+      }),
+    ]);
+    const updated = results[results.length - 1];
+
+    this.logger.log(
+      { actorId: caller.id, ticketId: id, from: current.assignedAgentId, to: assignedAgentId },
+      'Ticket reassigned',
+    );
+
+    return TicketsService.toResponse(updated as SelectedTicket);
+  }
+
   /** Public: reused by the comments/attachments/history services so every
    *  nested route 404s on an unknown ticket before touching a child table. */
   async assertExists(id: string): Promise<{ id: string }> {
@@ -277,7 +360,36 @@ export class TicketsService {
     }
   }
 
-  private static toResponse(ticket: SelectedTicket): TicketResponseDto {
+  /**
+   * Product rule 5. Called from create(), update(), and assign() — all three,
+   * or PATCH /tickets/:id becomes the bypass for the assignment route.
+   *
+   * `currentAssigneeId` is the ticket's assignment BEFORE this write; pass
+   * `null` on create.
+   */
+  private assertMayAssign(
+    nextAssigneeId: string | null,
+    currentAssigneeId: string | null,
+    caller: AuthenticatedUser,
+  ): void {
+    if (caller.permissions.includes(TICKET_ASSIGN_PERMISSION)) {
+      return;
+    }
+
+    if (nextAssigneeId === caller.id) {
+      return;
+    }
+
+    if (nextAssigneeId === null && currentAssigneeId === caller.id) {
+      return;
+    }
+
+    throw new ForbiddenException(
+      'You may only assign a ticket to yourself, or release one assigned to you.',
+    );
+  }
+
+  static toResponse(ticket: SelectedTicket): TicketResponseDto {
     return {
       id: ticket.id,
       customer: ticket.customer,

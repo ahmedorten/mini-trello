@@ -13,6 +13,7 @@ import {
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
+import { AssignTicketDto } from './dto/assign-ticket.dto';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { ListTicketsQueryDto } from './dto/list-tickets-query.dto';
 import { SetTicketStatusDto } from './dto/set-ticket-status.dto';
@@ -35,8 +36,11 @@ export class TicketsController {
     description: 'Paginated, searchable across subject/description, filterable.',
   })
   @ApiOkResponse({ type: PaginatedTicketsDto })
-  list(@Query() query: ListTicketsQueryDto): Promise<PaginatedTicketsDto> {
-    return this.ticketsService.list(query);
+  list(
+    @Query() query: ListTicketsQueryDto,
+    @CurrentUser() caller: AuthenticatedUser,
+  ): Promise<PaginatedTicketsDto> {
+    return this.ticketsService.list(query, caller);
   }
 
   @Get(':id')
@@ -87,5 +91,25 @@ export class TicketsController {
     @CurrentUser() caller: AuthenticatedUser,
   ): Promise<TicketResponseDto> {
     return this.ticketsService.setStatus(id, dto.status, caller);
+  }
+
+  @Patch(':id/assignment')
+  @RequirePermissions('tickets:write')
+  @ApiOperation({
+    summary: 'Assign or release a ticket',
+    description:
+      'Without tickets:assign the caller may only claim the ticket for themselves, ' +
+      'or release one already assigned to them.',
+  })
+  @ApiOkResponse({ type: TicketResponseDto })
+  @ApiForbiddenResponse({ description: 'The caller may not assign to that user.' })
+  @ApiNotFoundResponse({ description: 'No such ticket.' })
+  @ApiBadRequestResponse({ description: 'Unknown or inactive assignedAgentId.' })
+  assign(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AssignTicketDto,
+    @CurrentUser() caller: AuthenticatedUser,
+  ): Promise<TicketResponseDto> {
+    return this.ticketsService.assign(id, dto.assignedAgentId ?? null, caller);
   }
 }

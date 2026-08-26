@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { TicketCategory, TicketPriority, TicketStatus } from '@prisma/client';
 import { TicketsService } from './tickets.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import type { CreateTicketDto } from './dto/create-ticket.dto';
-import type { ListTicketsQueryDto } from './dto/list-tickets-query.dto';
+import { TicketScope, type ListTicketsQueryDto } from './dto/list-tickets-query.dto';
 
 function containing(obj: Record<string, unknown>): unknown {
   return expect.objectContaining(obj);
@@ -39,7 +39,9 @@ function buildCaller(overrides: Partial<AuthenticatedUser> = {}): AuthenticatedU
     departmentId: null,
     branchId: null,
     roles: ['system-administrator'],
-    permissions: ['tickets:read', 'tickets:write', 'tickets:manage'],
+    // A system-administrator (the seeded role backing this fixture) holds
+    // every permission key, tickets:assign included.
+    permissions: ['tickets:read', 'tickets:write', 'tickets:manage', 'tickets:assign'],
     ...overrides,
   };
 }
@@ -48,7 +50,7 @@ describe('TicketsService', () => {
   let service: TicketsService;
   let prisma: {
     ticket: {
-      findMany: jest.Mock;
+      findMany: jest.Mock<Promise<unknown[]>, [Record<string, unknown>]>;
       count: jest.Mock;
       findUnique: jest.Mock;
       create: jest.Mock;
@@ -63,7 +65,7 @@ describe('TicketsService', () => {
   beforeEach(async () => {
     prisma = {
       ticket: {
-        findMany: jest.fn(),
+        findMany: jest.fn<Promise<unknown[]>, [Record<string, unknown>]>(),
         count: jest.fn(),
         findUnique: jest.fn(),
         create: jest.fn(),
@@ -93,7 +95,7 @@ describe('TicketsService', () => {
   });
 
   function query(overrides: Partial<ListTicketsQueryDto> = {}): ListTicketsQueryDto {
-    return { page: 1, pageSize: 20, ...overrides };
+    return { page: 1, pageSize: 20, scope: TicketScope.All, ...overrides };
   }
 
   describe('list', () => {
@@ -101,7 +103,7 @@ describe('TicketsService', () => {
       prisma.ticket.findMany.mockResolvedValue([]);
       prisma.ticket.count.mockResolvedValue(0);
 
-      await service.list(query());
+      await service.list(query(), buildCaller());
 
       expect(prisma.ticket.findMany).toHaveBeenCalledWith(
         containing({ where: {}, skip: 0, take: 20 }),
@@ -112,7 +114,7 @@ describe('TicketsService', () => {
       prisma.ticket.findMany.mockResolvedValue([]);
       prisma.ticket.count.mockResolvedValue(0);
 
-      await service.list(query({ search: 'login' }));
+      await service.list(query({ search: 'login' }), buildCaller());
 
       expect(prisma.ticket.findMany).toHaveBeenCalledWith(
         containing({
@@ -138,6 +140,7 @@ describe('TicketsService', () => {
           assignedAgentId: 'agent-1',
           customerId: 'customer-1',
         }),
+        buildCaller(),
       );
 
       expect(prisma.ticket.findMany).toHaveBeenCalledWith(
@@ -157,11 +160,78 @@ describe('TicketsService', () => {
       prisma.ticket.findMany.mockResolvedValue([]);
       prisma.ticket.count.mockResolvedValue(0);
 
-      await service.list(query());
+      await service.list(query(), buildCaller());
 
       expect(prisma.ticket.findMany).toHaveBeenCalledWith(
         containing({ orderBy: { createdAt: 'desc' } }),
       );
+    });
+
+    describe('scope', () => {
+      beforeEach(() => {
+        prisma.ticket.findMany.mockResolvedValue([]);
+        prisma.ticket.count.mockResolvedValue(0);
+      });
+
+      it('scope=mine filters to assignedAgentId === caller.id', async () => {
+        const caller = buildCaller({ id: 'caller-9' });
+
+        await service.list(query({ scope: TicketScope.Mine }), caller);
+
+        expect(prisma.ticket.findMany).toHaveBeenCalledWith(
+          containing({ where: containing({ assignedAgentId: 'caller-9' }) }),
+        );
+      });
+
+      it('scope=unassigned filters to assignedAgentId === null', async () => {
+        await service.list(query({ scope: TicketScope.Unassigned }), buildCaller());
+
+        expect(prisma.ticket.findMany).toHaveBeenCalledWith(
+          containing({ where: containing({ assignedAgentId: null }) }),
+        );
+      });
+
+      it('scope=workable composes an AND/OR, not a bare where.OR', async () => {
+        const caller = buildCaller({ id: 'caller-9' });
+
+        await service.list(query({ scope: TicketScope.Workable }), caller);
+
+        const calledWith = prisma.ticket.findMany.mock.calls[0][0] as {
+          where: Record<string, unknown>;
+        };
+        expect(calledWith.where.AND).toEqual([
+          { OR: [{ assignedAgentId: 'caller-9' }, { assignedAgentId: null }] },
+        ]);
+        expect(calledWith.where.OR).toBeUndefined();
+      });
+
+      it('scope=all adds no assignment predicate', async () => {
+        await service.list(query({ scope: TicketScope.All }), buildCaller());
+
+        const calledWith = prisma.ticket.findMany.mock.calls[0][0] as {
+          where: Record<string, unknown>;
+        };
+        expect(calledWith.where.assignedAgentId).toBeUndefined();
+        expect(calledWith.where.AND).toBeUndefined();
+      });
+
+      it('scope=workable together with search keeps both the OR search clause and the AND assignment clause', async () => {
+        const caller = buildCaller({ id: 'caller-9' });
+
+        await service.list(query({ scope: TicketScope.Workable, search: 'login' }), caller);
+
+        expect(prisma.ticket.findMany).toHaveBeenCalledWith(
+          containing({
+            where: containing({
+              OR: [
+                { subject: { contains: 'login', mode: 'insensitive' } },
+                { description: { contains: 'login', mode: 'insensitive' } },
+              ],
+              AND: [{ OR: [{ assignedAgentId: 'caller-9' }, { assignedAgentId: null }] }],
+            }),
+          }),
+        );
+      });
     });
   });
 
@@ -170,7 +240,7 @@ describe('TicketsService', () => {
       prisma.ticket.findMany.mockResolvedValue([baseTicketRow]);
       prisma.ticket.count.mockResolvedValue(1);
 
-      const result = await service.list(query());
+      const result = await service.list(query(), buildCaller());
       const item = result.items[0];
 
       expect(item.counts).toEqual({ comments: 4, attachments: 2, history: 3 });
@@ -213,6 +283,40 @@ describe('TicketsService', () => {
       expect(prisma.ticket.create).toHaveBeenCalledWith(
         containing({ data: containing({ createdById: caller.id }) }),
       );
+    });
+
+    it('with no assignedAgentId is unaffected by the assignment guard', async () => {
+      const caller = buildCaller({ permissions: ['tickets:read', 'tickets:write'] });
+      prisma.ticket.create.mockResolvedValue(baseTicketRow);
+
+      await expect(service.create(dto, caller)).resolves.toBeDefined();
+      expect(prisma.ticket.create).toHaveBeenCalled();
+    });
+
+    it('with a foreign assignedAgentId and no tickets:assign throws ForbiddenException', async () => {
+      const caller = buildCaller({
+        id: 'caller-1',
+        permissions: ['tickets:read', 'tickets:write'],
+      });
+      prisma.user.findUnique.mockResolvedValue({ id: 'agent-1', isActive: true });
+
+      await expect(
+        service.create({ ...dto, assignedAgentId: 'agent-1' }, caller),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.ticket.create).not.toHaveBeenCalled();
+    });
+
+    it('permits self-claim on create without tickets:assign', async () => {
+      const caller = buildCaller({
+        id: 'caller-1',
+        permissions: ['tickets:read', 'tickets:write'],
+      });
+      prisma.user.findUnique.mockResolvedValue({ id: 'caller-1', isActive: true });
+      prisma.ticket.create.mockResolvedValue(baseTicketRow);
+
+      await expect(
+        service.create({ ...dto, assignedAgentId: 'caller-1' }, caller),
+      ).resolves.toBeDefined();
     });
   });
 
@@ -319,6 +423,194 @@ describe('TicketsService', () => {
       await service.update(baseTicketRow.id, {}, caller);
 
       expect(prisma.ticketHistory.createMany).not.toHaveBeenCalled();
+    });
+
+    it('with { assignedAgentId: <other> } and no tickets:assign throws ForbiddenException — the bypass test', async () => {
+      const caller = buildCaller({
+        id: 'caller-1',
+        permissions: ['tickets:read', 'tickets:write'],
+      });
+      prisma.user.findUnique.mockResolvedValue({ id: 'agent-1', isActive: true });
+
+      await expect(
+        service.update(baseTicketRow.id, { assignedAgentId: 'agent-1' }, caller),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.ticket.update).not.toHaveBeenCalled();
+    });
+
+    it('with { priority: HIGH } and no assignedAgentId is unaffected by the assignment guard', async () => {
+      const caller = buildCaller({
+        id: 'caller-1',
+        permissions: ['tickets:read', 'tickets:write'],
+      });
+
+      await expect(
+        service.update(baseTicketRow.id, { priority: TicketPriority.HIGH }, caller),
+      ).resolves.toBeDefined();
+      expect(prisma.ticket.update).toHaveBeenCalled();
+    });
+
+    it('assertAgentExists runs before the permission guard — an unknown uuid gives 400, not 403', async () => {
+      const caller = buildCaller({
+        id: 'caller-1',
+        permissions: ['tickets:read', 'tickets:write'],
+      });
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.update(baseTicketRow.id, { assignedAgentId: 'unknown-agent' }, caller),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('assign', () => {
+    const currentAssignedRow = { id: baseTicketRow.id, assignedAgentId: 'agent-1' };
+    const currentUnassignedRow = { id: baseTicketRow.id, assignedAgentId: null as string | null };
+
+    it('happy path writes one TicketHistory row with field assignedAgentId, history-insert first, inside a $transaction', async () => {
+      const caller = buildCaller({
+        id: 'caller-1',
+        permissions: ['tickets:read', 'tickets:write', 'tickets:assign'],
+      });
+      prisma.ticket.findUnique.mockResolvedValue(currentAssignedRow);
+      prisma.user.findUnique.mockResolvedValue({ id: 'agent-2', isActive: true });
+      prisma.ticket.update.mockResolvedValue(baseTicketRow);
+
+      await service.assign(baseTicketRow.id, 'agent-2', caller);
+
+      expect(prisma.$transaction).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.anything(), expect.anything()]),
+      );
+      expect(prisma.ticketHistory.createMany).toHaveBeenCalledWith(
+        containing({
+          data: [
+            containing({ field: 'assignedAgentId', oldValue: 'agent-1', newValue: 'agent-2' }),
+          ],
+        }),
+      );
+      expect(prisma.ticket.update).toHaveBeenCalledWith(
+        containing({ data: containing({ assignedAgent: { connect: { id: 'agent-2' } } }) }),
+      );
+
+      const historyOrder = prisma.ticketHistory.createMany.mock.invocationCallOrder[0];
+      const updateOrder = prisma.ticket.update.mock.invocationCallOrder[0];
+      expect(historyOrder).toBeLessThan(updateOrder);
+    });
+
+    it('releasing writes oldValue/newValue correctly and disconnects', async () => {
+      const caller = buildCaller({ id: 'agent-1', permissions: [] });
+      prisma.ticket.findUnique.mockResolvedValue(currentAssignedRow);
+      prisma.ticket.update.mockResolvedValue(baseTicketRow);
+
+      await service.assign(baseTicketRow.id, null, caller);
+
+      expect(prisma.ticketHistory.createMany).toHaveBeenCalledWith(
+        containing({
+          data: [containing({ field: 'assignedAgentId', oldValue: 'agent-1', newValue: null })],
+        }),
+      );
+      expect(prisma.ticket.update).toHaveBeenCalledWith(
+        containing({ data: containing({ assignedAgent: { disconnect: true } }) }),
+      );
+    });
+
+    it('to the current assignee writes no history row and returns via findOne', async () => {
+      const caller = buildCaller({
+        id: 'caller-1',
+        permissions: ['tickets:read', 'tickets:write', 'tickets:assign'],
+      });
+      prisma.ticket.findUnique.mockResolvedValueOnce(currentAssignedRow);
+      prisma.ticket.findUnique.mockResolvedValueOnce(baseTicketRow);
+      prisma.user.findUnique.mockResolvedValue({ id: 'agent-1', isActive: true });
+
+      await service.assign(baseTicketRow.id, 'agent-1', caller);
+
+      expect(prisma.ticketHistory.createMany).not.toHaveBeenCalled();
+      expect(prisma.ticket.update).not.toHaveBeenCalled();
+      // findOne re-queries via ticket.findUnique with the response projection.
+      expect(prisma.ticket.findUnique).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws ForbiddenException when the caller lacks tickets:assign and the target is neither the caller nor a self-release', async () => {
+      const caller = buildCaller({
+        id: 'caller-1',
+        permissions: ['tickets:read', 'tickets:write'],
+      });
+      prisma.ticket.findUnique.mockResolvedValue(currentAssignedRow);
+      prisma.user.findUnique.mockResolvedValue({ id: 'agent-2', isActive: true });
+
+      await expect(service.assign(baseTicketRow.id, 'agent-2', caller)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(prisma.ticket.update).not.toHaveBeenCalled();
+    });
+
+    it('permits self-claim without tickets:assign', async () => {
+      const caller = buildCaller({
+        id: 'caller-1',
+        permissions: ['tickets:read', 'tickets:write'],
+      });
+      prisma.ticket.findUnique.mockResolvedValue(currentUnassignedRow);
+      prisma.user.findUnique.mockResolvedValue({ id: 'caller-1', isActive: true });
+      prisma.ticket.update.mockResolvedValue(baseTicketRow);
+
+      await expect(service.assign(baseTicketRow.id, 'caller-1', caller)).resolves.toBeDefined();
+    });
+
+    it('permits self-release without tickets:assign', async () => {
+      const caller = buildCaller({
+        id: 'caller-1',
+        permissions: ['tickets:read', 'tickets:write'],
+      });
+      prisma.ticket.findUnique.mockResolvedValue({
+        id: baseTicketRow.id,
+        assignedAgentId: 'caller-1',
+      });
+      prisma.ticket.update.mockResolvedValue(baseTicketRow);
+
+      await expect(service.assign(baseTicketRow.id, null, caller)).resolves.toBeDefined();
+    });
+
+    it('permits any target when the caller holds tickets:assign', async () => {
+      const caller = buildCaller({
+        id: 'caller-1',
+        permissions: ['tickets:read', 'tickets:write', 'tickets:assign'],
+      });
+      prisma.ticket.findUnique.mockResolvedValue(currentUnassignedRow);
+      prisma.user.findUnique.mockResolvedValue({ id: 'agent-9', isActive: true });
+      prisma.ticket.update.mockResolvedValue(baseTicketRow);
+
+      await expect(service.assign(baseTicketRow.id, 'agent-9', caller)).resolves.toBeDefined();
+    });
+
+    it('rejects releasing a ticket assigned to someone else, without tickets:assign', async () => {
+      const caller = buildCaller({
+        id: 'caller-1',
+        permissions: ['tickets:read', 'tickets:write'],
+      });
+      prisma.ticket.findUnique.mockResolvedValue({
+        id: baseTicketRow.id,
+        assignedAgentId: 'agent-2',
+      });
+
+      await expect(service.assign(baseTicketRow.id, null, caller)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(prisma.ticket.update).not.toHaveBeenCalled();
+    });
+
+    it('assertAgentExists runs before assertMayAssign — an unknown uuid gives 400, not 403', async () => {
+      const caller = buildCaller({
+        id: 'caller-1',
+        permissions: ['tickets:read', 'tickets:write'],
+      });
+      prisma.ticket.findUnique.mockResolvedValue(currentUnassignedRow);
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.assign(baseTicketRow.id, 'unknown-agent', caller),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.ticket.update).not.toHaveBeenCalled();
     });
   });
 
