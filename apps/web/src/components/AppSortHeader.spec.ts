@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import { defineComponent, h } from 'vue';
+import { defineComponent, h, type PropType } from 'vue';
 import AppSortHeader from './AppSortHeader.vue';
 
 /** A <th> is only valid inside <thead><tr>, so host it there — mirrors the
@@ -18,7 +18,7 @@ function mountHeader(props: {
       field: { type: String, required: true },
       label: { type: String, required: true },
       activeField: { type: String, required: true },
-      activeOrder: { type: String, required: true },
+      activeOrder: { type: String as PropType<'asc' | 'desc'>, required: true },
     },
     emits: ['sort'],
     setup(hostProps, { emit }) {
