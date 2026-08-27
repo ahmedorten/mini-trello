@@ -595,7 +595,7 @@ describe('CommunicationTimeline', () => {
     expect(payload.direction).toBe('OUTBOUND');
   });
 
-  it('delete is behind window.confirm', async () => {
+  it('delete is behind the confirm dialog', async () => {
     mockAuth(['interactions:write'], 'u-1');
     mockedListTicketInteractions.mockResolvedValue([makeInteraction({ createdBy: { id: 'u-1', fullName: 'Me', email: 'me@crm.local' } })]);
     mockedDeleteInteraction.mockResolvedValue(undefined);
@@ -603,13 +603,42 @@ describe('CommunicationTimeline', () => {
     const wrapper = mountTimeline();
     await flushPromises();
 
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'Delete')!;
     await deleteButton.trigger('click');
     expect(mockedDeleteInteraction).not.toHaveBeenCalled();
 
-    confirmSpy.mockReturnValue(true);
+    const confirmButton = wrapper.find('.form-actions').findAll('button')[1];
+    await confirmButton.trigger('click');
+    await flushPromises();
+    expect(mockedDeleteInteraction).toHaveBeenCalledWith('c-1', 'i-1');
+  });
+
+  it.each([
+    ['ticket-scoped', { ticketId: 't-1', customerId: 'c-1' } as TimelineProps],
+    ['customer-scoped', { ticketId: undefined, customerId: 'c-1' } as TimelineProps],
+    ['unscoped', { ticketId: undefined, customerId: undefined } as TimelineProps],
+  ] as const)('delete goes through in the %s scope (Product rule 11)', async (_label, props) => {
+    mockAuth(['interactions:write'], 'u-1');
+    const interaction = makeInteraction({ createdBy: { id: 'u-1', fullName: 'Me', email: 'me@crm.local' } });
+
+    mockedListTicketInteractions.mockResolvedValue([interaction]);
+    mockedListInteractions.mockResolvedValue([interaction]);
+    mockedListCommunicationTimeline.mockResolvedValue({
+      items: [interaction],
+      meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
+    });
+    mockedDeleteInteraction.mockResolvedValue(undefined);
+
+    const wrapper = mountTimeline(props);
+    await flushPromises();
+
+    const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'Delete')!;
     await deleteButton.trigger('click');
+
+    const confirmButton = wrapper.find('.form-actions').findAll('button')[1];
+    await confirmButton.trigger('click');
+    await flushPromises();
+
     expect(mockedDeleteInteraction).toHaveBeenCalledWith('c-1', 'i-1');
   });
 

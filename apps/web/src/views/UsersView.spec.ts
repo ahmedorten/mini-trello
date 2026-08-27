@@ -210,11 +210,10 @@ describe('UsersView', () => {
     expect(picker.text()).toContain('System Administrator');
   });
 
-  it('deactivates only when window.confirm is stubbed true', async () => {
+  it('deactivate opens the confirm dialog and calls setStatus only after Confirm', async () => {
     mockAuth(['users:read', 'users:deactivate'], 'someone-else');
     const store = mockUsers({ items: [makeUser()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
 
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
     const deactivateButton = wrapper
       .find('.data-table__actions')
@@ -224,9 +223,78 @@ describe('UsersView', () => {
     await deactivateButton.trigger('click');
     expect(store.setStatus).not.toHaveBeenCalled();
 
-    confirmSpy.mockReturnValue(true);
-    await deactivateButton.trigger('click');
+    const dialogActions = wrapper.findAllComponents({ name: 'AppConfirmDialog' })[0];
+    const confirmButton = dialogActions.find('.form-actions').findAll('button')[1];
+    await confirmButton.trigger('click');
+
     expect(store.setStatus).toHaveBeenCalledWith('u-1', false);
+  });
+
+  it('the deactivate confirmation interpolates the user name', async () => {
+    mockAuth(['users:read', 'users:deactivate'], 'someone-else');
+    mockUsers({ items: [makeUser()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
+
+    const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
+    const deactivateButton = wrapper
+      .find('.data-table__actions')
+      .findAll('button')
+      .find((b) => b.text() === 'Deactivate')!;
+
+    await deactivateButton.trigger('click');
+
+    expect(wrapper.text()).toContain('Deactivate Nour Hassan?');
+  });
+
+  it('opening the roles modal closes the edit modal', async () => {
+    mockAuth(['users:read', 'users:write', 'roles:assign']);
+    mockUsers({ items: [makeUser()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
+
+    const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
+    const actions = wrapper.find('.data-table__actions').findAll('button');
+    await actions.find((b) => b.text() === 'Edit')!.trigger('click');
+
+    const modals = () => wrapper.findAllComponents({ name: 'AppModal' });
+    expect(modals().filter((m) => m.props('open')).length).toBeGreaterThanOrEqual(1);
+
+    await actions.find((b) => b.text() === 'Roles')!.trigger('click');
+
+    const editModal = modals().find((m) => m.props('titleKey') === 'user.form.editTitle')!;
+    const rolesModal = modals().find((m) => m.props('titleKey') === 'user.form.rolesTitle')!;
+    expect(editModal.props('open')).toBe(false);
+    expect(rolesModal.props('open')).toBe(true);
+  });
+
+  it('opening any modal clears users.error', async () => {
+    mockAuth(['users:read', 'users:write']);
+    const store = mockUsers({
+      items: [makeUser()],
+      meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
+      error: 'Cannot reach the API.',
+    });
+
+    const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
+    const actions = wrapper.find('.data-table__actions').findAll('button');
+    await actions.find((b) => b.text() === 'Edit')!.trigger('click');
+
+    expect(store.error).toBeNull();
+  });
+
+  it('a failed create leaves no error inside a subsequently opened edit modal', async () => {
+    mockAuth(['users:read', 'users:write']);
+    const store = mockUsers({ items: [makeUser()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
+
+    const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
+    const createButton = wrapper.findAll('button').find((b) => b.text() === 'Create user')!;
+    await createButton.trigger('click');
+
+    store.error = 'Email already exists.';
+    await wrapper.vm.$nextTick();
+
+    const actions = wrapper.find('.data-table__actions').findAll('button');
+    await actions.find((b) => b.text() === 'Edit')!.trigger('click');
+
+    const editModal = wrapper.findAllComponents({ name: 'AppModal' }).find((m) => m.props('titleKey') === 'user.form.editTitle')!;
+    expect(editModal.find('[role="alert"]').exists()).toBe(false);
   });
 
   it('renders a sortable header for each API-sortable column and a plain th for the rest', () => {

@@ -20,6 +20,7 @@
     "actions": "الإجراءات",
     "view": "عرض",
     "confirm": "تأكيد",
+    "confirmDialog": { "title": "يرجى التأكيد" },
     "dismiss": "إغلاق",
     "unassigned": "غير مُسند",
     "all": "الكل",

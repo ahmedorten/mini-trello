@@ -20,6 +20,7 @@
     "actions": "Actions",
     "view": "View",
     "confirm": "Confirm",
+    "confirmDialog": { "title": "Please confirm" },
     "dismiss": "Dismiss",
     "unassigned": "Unassigned",
     "all": "All",

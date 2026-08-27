@@ -222,7 +222,7 @@ describe('TicketDetailView', () => {
     expect(item.findAll('button').map((b) => b.text())).toEqual(['Delete']);
   });
 
-  it('deletes a comment only when window.confirm is stubbed true', async () => {
+  it('deletes a comment only after the confirm dialog is confirmed', async () => {
     mockAuth(['tickets:read', 'ticket-comments:write'], 'u-1');
     const ownComment: TicketComment = {
       id: 'cm-1',
@@ -235,17 +235,16 @@ describe('TicketDetailView', () => {
     const store = mockTickets({ comments: [ownComment] });
     const wrapper = await mountView();
 
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const deleteButton = wrapper.findAll('.ticket-detail__comment button').find((b) => b.text() === 'Delete')!;
     await deleteButton.trigger('click');
     expect(store.removeComment).not.toHaveBeenCalled();
 
-    confirmSpy.mockReturnValue(true);
-    await deleteButton.trigger('click');
+    const confirmButton = wrapper.find('.form-actions').findAll('button')[1];
+    await confirmButton.trigger('click');
     expect(store.removeComment).toHaveBeenCalledWith('t-1', 'cm-1');
   });
 
-  it('omits the upload control without ticket-attachments:write, and gates attachment delete on window.confirm', async () => {
+  it('omits the upload control without ticket-attachments:write, and routes attachment delete through the confirm dialog', async () => {
     mockAuth(['tickets:read'], 'u-1');
     const store = mockTickets({
       attachments: [
@@ -270,13 +269,52 @@ describe('TicketDetailView', () => {
     const buttons = wrapper.findAll('.ticket-detail__attachment button');
     expect(buttons.map((b) => b.text())).toEqual(['Download', 'Delete']);
 
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     await buttons[1].trigger('click');
     expect(store.removeAttachment).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('screenshot.png');
 
-    confirmSpy.mockReturnValue(true);
-    await buttons[1].trigger('click');
+    const confirmButton = wrapper.find('.form-actions').findAll('button')[1];
+    await confirmButton.trigger('click');
     expect(store.removeAttachment).toHaveBeenCalledWith('t-1', 'a-1');
+  });
+
+  it('the discriminated pending state routes comment vs attachment deletes to the correct message key', async () => {
+    mockAuth(['tickets:read', 'ticket-comments:write', 'tickets:manage'], 'u-1');
+    const comment: TicketComment = {
+      id: 'cm-1',
+      ticketId: 't-1',
+      author: { id: 'u-1', fullName: 'Me', email: 'me@crm.local' },
+      body: 'Mine',
+      createdAt: '2026-08-25T00:00:00.000Z',
+      updatedAt: '2026-08-25T00:00:00.000Z',
+    };
+    mockTickets({
+      comments: [comment],
+      attachments: [
+        {
+          id: 'a-1',
+          ticketId: 't-1',
+          fileName: 'report.pdf',
+          mimeType: 'application/pdf',
+          sizeBytes: 512,
+          checksumSha256: 'abc',
+          uploadedBy: { id: 'u-1', fullName: 'Me', email: 'me@crm.local' },
+          createdAt: '2026-08-25T00:00:00.000Z',
+        },
+      ],
+    });
+    const wrapper = await mountView();
+
+    const commentDelete = wrapper.findAll('.ticket-detail__comment button').find((b) => b.text() === 'Delete')!;
+    await commentDelete.trigger('click');
+    expect(wrapper.text()).not.toContain('report.pdf');
+    await wrapper.find('.form-actions').findAll('button')[0].trigger('click');
+
+    const tabs = wrapper.findAll('[role="tab"]');
+    await tabs[1].trigger('click');
+    const attachmentDelete = wrapper.findAll('.ticket-detail__attachment button').find((b) => b.text() === 'Delete')!;
+    await attachmentDelete.trigger('click');
+    expect(wrapper.text()).toContain('report.pdf');
   });
 
   it('the History tab has no form element at all', async () => {

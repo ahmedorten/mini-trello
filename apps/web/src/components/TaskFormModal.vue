@@ -115,7 +115,7 @@ async function submit(): Promise<void> {
 <template>
   <AppModal :open="open" :title-key="isEdit ? 'task.edit' : 'task.new'" @update:open="emit('update:open', $event)">
     <form class="task-form-modal" @submit.prevent="submit">
-      <div v-if="tasks.error" role="alert" class="task-form-modal__error">{{ tasks.error }}</div>
+      <div v-if="tasks.error" role="alert" class="form-error">{{ tasks.error }}</div>
 
       <label>
         {{ t('task.title') }}
@@ -175,14 +175,6 @@ async function submit(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-}
-
-.task-form-modal__error {
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius);
-  background: var(--color-error-soft);
-  border: 1px solid var(--color-error);
-  color: var(--color-error);
 }
 
 .task-form-modal__actions {

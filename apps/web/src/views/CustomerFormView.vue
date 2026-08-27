@@ -11,6 +11,7 @@ import {
   type CustomerType,
   type UpdateCustomerPayload,
 } from '@/api/customers';
+import AppButton from '@/components/AppButton.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -123,7 +124,7 @@ function cancel(): void {
     <h1>{{ isEdit ? t('customer.form.editTitle') : t('customer.form.newTitle') }}</h1>
 
     <form class="customer-form" @submit.prevent="submit">
-      <div v-if="customers.error" role="alert" class="customer-form__error">{{ customers.error }}</div>
+      <div v-if="customers.error" role="alert" class="form-error">{{ customers.error }}</div>
 
       <fieldset>
         <legend>{{ t('customer.form.section.identity') }}</legend>
@@ -200,9 +201,11 @@ function cancel(): void {
         </label>
       </fieldset>
 
-      <div class="customer-form__actions">
-        <button type="submit" :disabled="customers.isSaving || form.name.trim().length < 2">{{ t('common.save') }}</button>
-        <button type="button" @click="cancel">{{ t('common.cancel') }}</button>
+      <div class="form-actions">
+        <AppButton type="submit" variant="primary" :loading="customers.isSaving" :disabled="form.name.trim().length < 2">
+          {{ t('common.save') }}
+        </AppButton>
+        <AppButton type="button" variant="secondary" @click="cancel">{{ t('common.cancel') }}</AppButton>
       </div>
     </form>
   </section>
@@ -231,16 +234,4 @@ function cancel(): void {
   gap: var(--space-1);
 }
 
-.customer-form__error {
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius);
-  background: var(--color-error-soft);
-  border: 1px solid var(--color-error);
-  color: var(--color-error);
-}
-
-.customer-form__actions {
-  display: flex;
-  gap: var(--space-2);
-}
 </style>

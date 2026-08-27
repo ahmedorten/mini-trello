@@ -17,6 +17,7 @@ import AppButton from '@/components/AppButton.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppSortHeader from '@/components/AppSortHeader.vue';
 import TaskFormModal from '@/components/TaskFormModal.vue';
+import AppConfirmDialog from '@/components/AppConfirmDialog.vue';
 
 const auth = useAuthStore();
 const tasks = useTasksStore();
@@ -66,10 +67,25 @@ async function toggleComplete(task: AgentTask): Promise<void> {
   await tasks.setStatus(task.id, nextStatus);
 }
 
-async function remove(task: AgentTask): Promise<void> {
-  if (window.confirm(t('task.confirmDelete'))) {
-    await tasks.remove(task.id);
+// --- destructive confirmation -------------------------------------------
+
+const pendingDelete = ref<AgentTask | null>(null);
+
+function requestDelete(task: AgentTask): void {
+  // Product rule 8: never open a dialog on top of a stale error.
+  tasks.error = null;
+  pendingDelete.value = task;
+}
+
+async function confirmDelete(): Promise<void> {
+  const task = pendingDelete.value;
+
+  if (!task) {
+    return;
   }
+
+  pendingDelete.value = null;
+  await tasks.remove(task.id);
 }
 
 const canSeeAllScope = computed(() => auth.can('tasks:manage'));
@@ -151,11 +167,15 @@ onMounted(() => {
               </td>
               <td>{{ task.assignee.fullName }}</td>
               <td class="data-table__actions">
-                <button type="button" @click="toggleComplete(task)">
+                <AppButton variant="ghost" size="sm" @click="toggleComplete(task)">
                   {{ task.status === 'DONE' ? t('task.reopen') : t('task.complete') }}
-                </button>
-                <button v-if="auth.can('tasks:write')" type="button" @click="openEdit(task)">{{ t('common.edit') }}</button>
-                <button v-if="auth.can('tasks:write')" type="button" @click="remove(task)">{{ t('common.delete') }}</button>
+                </AppButton>
+                <AppButton v-if="auth.can('tasks:write')" variant="ghost" size="sm" @click="openEdit(task)">
+                  {{ t('common.edit') }}
+                </AppButton>
+                <AppButton v-if="auth.can('tasks:write')" variant="danger" size="sm" @click="requestDelete(task)">
+                  {{ t('common.delete') }}
+                </AppButton>
               </td>
             </tr>
           </tbody>
@@ -174,6 +194,13 @@ onMounted(() => {
     </template>
 
     <TaskFormModal v-model:open="isModalOpen" :task="editingTask" />
+
+    <AppConfirmDialog
+      :open="pendingDelete !== null"
+      message-key="task.confirmDelete"
+      @update:open="pendingDelete = null"
+      @confirm="confirmDelete"
+    />
   </section>
 </template>
 

@@ -234,6 +234,100 @@ html[dir='rtl'] body {
   }
 }
 
+/* --- Form controls -----------------------------------------------------------
+ * Element selectors, not a utility class (Product rule 1): before this rule set
+ * exactly two files in the app styled a control — LoginView and
+ * ReassignControl — and every other input, select, and textarea rendered at
+ * browser default next to fully tokenised buttons and cards. */
+input[type='text'],
+input[type='email'],
+input[type='password'],
+input[type='search'],
+input[type='tel'],
+input[type='url'],
+input[type='number'],
+input[type='date'],
+input[type='datetime-local'],
+select,
+textarea {
+  inline-size: 100%;
+  min-block-size: 2.25rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-sm);
+}
+
+textarea {
+  min-block-size: 5rem;
+  resize: vertical;
+}
+
+input:hover:not(:disabled),
+select:hover:not(:disabled),
+textarea:hover:not(:disabled) {
+  border-color: var(--color-accent);
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+/* The browser's default invalid styling is a red glow in one engine and nothing
+ * in another. :user-invalid (not :invalid) fires only after the user has
+ * actually interacted, so an untouched required field is not painted as an
+ * error the moment the form renders. */
+input:user-invalid,
+textarea:user-invalid {
+  border-color: var(--color-error);
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  inline-size: auto;
+  min-block-size: auto;
+  accent-color: var(--color-accent);
+}
+
+fieldset {
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+legend {
+  padding-inline: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+}
+
+/* One error surface, shared by every store-error block in the app. Replaces
+ * seven near-identical scoped rules. */
+.form-error {
+  padding: var(--space-3);
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius);
+  background: var(--color-error-soft);
+  color: var(--color-error);
+  font-size: var(--font-size-sm);
+}
+
+.form-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-block-start: var(--space-2);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -2,6 +2,7 @@
 import { onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useHealthStore } from '@/stores/health';
+import AppButton from '@/components/AppButton.vue';
 
 const health = useHealthStore();
 const { t, d, n } = useI18n();
@@ -15,14 +16,14 @@ onMounted(() => {
   <section>
     <header class="status__header">
       <h1>{{ t('systemStatus.title') }}</h1>
-      <button type="button" :disabled="health.isLoading" @click="health.load()">
+      <AppButton variant="secondary" :loading="health.isLoading" @click="health.load()">
         {{ health.isLoading ? t('systemStatus.checking') : t('systemStatus.refresh') }}
-      </button>
+      </AppButton>
     </header>
 
     <p v-if="health.isLoading && !health.data">{{ t('systemStatus.checkingApi') }}</p>
 
-    <div v-else-if="health.error" role="alert" class="status__error">
+    <div v-else-if="health.error" role="alert" class="form-error">
       <strong>{{ t('systemStatus.cannotReach') }}</strong>
       <p>{{ health.error }}</p>
       <p>
@@ -74,13 +75,6 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   margin-block-end: var(--space-5);
-}
-
-.status__error {
-  padding: var(--space-4);
-  border-radius: var(--radius);
-  background: var(--color-error-soft);
-  border: 1px solid var(--color-error);
 }
 
 .status__list {

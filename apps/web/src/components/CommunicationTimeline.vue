@@ -24,6 +24,7 @@ import AppStateBlock from './AppStateBlock.vue';
 import AppBadge from './AppBadge.vue';
 import AppIcon from './AppIcon.vue';
 import AppButton from './AppButton.vue';
+import AppConfirmDialog from './AppConfirmDialog.vue';
 import QuickReplyPicker from './QuickReplyPicker.vue';
 
 const props = withDefaults(
@@ -284,10 +285,21 @@ function canDelete(interaction: CustomerInteraction): boolean {
     && (interaction.createdBy?.id === auth.user?.id || auth.can('customers:archive'));
 }
 
-async function remove(interaction: CustomerInteraction): Promise<void> {
-  if (!window.confirm(t('customer.detail.deleteInteractionConfirm'))) {
+const pendingDelete = ref<CustomerInteraction | null>(null);
+
+function requestDelete(interaction: CustomerInteraction): void {
+  error.value = null;
+  pendingDelete.value = interaction;
+}
+
+async function confirmDelete(): Promise<void> {
+  const interaction = pendingDelete.value;
+
+  if (!interaction) {
     return;
   }
+
+  pendingDelete.value = null;
 
   // There is no ticket-scoped delete route; interactions are deleted through
   // the customer they belong to.
@@ -458,7 +470,7 @@ function isOtherTicket(interaction: CustomerInteraction): boolean {
           {{ t('customer.detail.loggedBy', { name: interaction.createdBy?.fullName ?? t('communication.systemAuthor') }) }}
         </p>
 
-        <AppButton v-if="canDelete(interaction)" variant="ghost" size="sm" @click="remove(interaction)">
+        <AppButton v-if="canDelete(interaction)" variant="ghost" size="sm" @click="requestDelete(interaction)">
           {{ t('common.delete') }}
         </AppButton>
       </li>
@@ -469,6 +481,13 @@ function isOtherTicket(interaction: CustomerInteraction): boolean {
       —
       <RouterLink :to="`/customers/${customerId}`">{{ t('customerSummary.viewProfile') }}</RouterLink>
     </p>
+
+    <AppConfirmDialog
+      :open="pendingDelete !== null"
+      message-key="customer.detail.deleteInteractionConfirm"
+      @update:open="pendingDelete = null"
+      @confirm="confirmDelete"
+    />
   </div>
 </template>
 

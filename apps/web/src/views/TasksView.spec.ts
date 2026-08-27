@@ -4,6 +4,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import { reactive } from 'vue';
 import { createPinia } from 'pinia';
 import TasksView from './TasksView.vue';
+import AppConfirmDialog from '@/components/AppConfirmDialog.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useTasksStore } from '@/stores/tasks';
 import type { AgentTask } from '@/api/tasks';
@@ -224,5 +225,52 @@ describe('TasksView', () => {
     await wrapper.find('.app-pagination__page-size select').setValue('50');
 
     expect(store.setPageSize).toHaveBeenCalledWith(50);
+  });
+
+  it('clicking Delete opens the confirm dialog and calls remove only after Confirm', async () => {
+    mockAuth(['tasks:read', 'tasks:write']);
+    const store = mockTasks({ items: [makeTask()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
+
+    const wrapper = await mountView();
+    const deleteButton = wrapper.find('.data-table__actions').findAll('button').find((b) => b.text() === 'Delete')!;
+    await deleteButton.trigger('click');
+
+    expect(store.remove).not.toHaveBeenCalled();
+    expect(wrapper.findComponent(AppConfirmDialog).props('open')).toBe(true);
+
+    const confirmButton = wrapper.find('.form-actions').findAll('button')[1];
+    await confirmButton.trigger('click');
+
+    expect(store.remove).toHaveBeenCalledWith('task-1');
+  });
+
+  it('clicking Cancel closes the dialog and never calls remove', async () => {
+    mockAuth(['tasks:read', 'tasks:write']);
+    const store = mockTasks({ items: [makeTask()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
+
+    const wrapper = await mountView();
+    const deleteButton = wrapper.find('.data-table__actions').findAll('button').find((b) => b.text() === 'Delete')!;
+    await deleteButton.trigger('click');
+
+    const cancelButton = wrapper.find('.form-actions').findAll('button')[0];
+    await cancelButton.trigger('click');
+
+    expect(wrapper.findComponent(AppConfirmDialog).props('open')).toBe(false);
+    expect(store.remove).not.toHaveBeenCalled();
+  });
+
+  it('a second Confirm click does not call remove twice', async () => {
+    mockAuth(['tasks:read', 'tasks:write']);
+    const store = mockTasks({ items: [makeTask()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
+
+    const wrapper = await mountView();
+    const deleteButton = wrapper.find('.data-table__actions').findAll('button').find((b) => b.text() === 'Delete')!;
+    await deleteButton.trigger('click');
+
+    const confirmButton = wrapper.find('.form-actions').findAll('button')[1];
+    await confirmButton.trigger('click');
+    await confirmButton.trigger('click');
+
+    expect(store.remove).toHaveBeenCalledTimes(1);
   });
 });

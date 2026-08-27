@@ -181,7 +181,7 @@ describe('CustomerDetailView', () => {
     expect(items[1].findAll('button')).toHaveLength(0);
   });
 
-  it('deletes a note only when window.confirm is stubbed true', async () => {
+  it('deletes a note only after the confirm dialog is confirmed', async () => {
     mockAuth(['customers:read', 'notes:write'], 'u-1');
     const ownNote: CustomerNote = {
       id: 'n-1',
@@ -194,14 +194,49 @@ describe('CustomerDetailView', () => {
     const store = mockCustomers({ notes: [ownNote] });
     const wrapper = await mountView();
 
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const deleteButton = wrapper.findAll('.customer-detail__note button').find((b) => b.text() === 'Delete')!;
     await deleteButton.trigger('click');
     expect(store.removeNote).not.toHaveBeenCalled();
 
-    confirmSpy.mockReturnValue(true);
+    const cancelButton = wrapper.find('.form-actions').findAll('button')[0];
+    await cancelButton.trigger('click');
+    expect(store.removeNote).not.toHaveBeenCalled();
+
     await deleteButton.trigger('click');
+    const confirmButton = wrapper.find('.form-actions').findAll('button')[1];
+    await confirmButton.trigger('click');
     expect(store.removeNote).toHaveBeenCalledWith('c-1', 'n-1');
+  });
+
+  it('routes the delete-attachment dialog to the attachment message key with the file name', async () => {
+    mockAuth(['customers:read', 'attachments:write'], 'u-1');
+    const store = mockCustomers({
+      attachments: [
+        {
+          id: 'a-1',
+          customerId: 'c-1',
+          fileName: 'contract.pdf',
+          mimeType: 'application/pdf',
+          sizeBytes: 1024,
+          checksumSha256: 'abc',
+          uploadedBy: { id: 'u-1', fullName: 'Me', email: 'me@crm.local' },
+          createdAt: '2026-08-25T00:00:00.000Z',
+        },
+      ],
+    });
+    const wrapper = await mountView();
+
+    const tabs = wrapper.findAll('[role="tab"]');
+    await tabs[1].trigger('click');
+
+    const deleteButton = wrapper.findAll('.customer-detail__attachment button').find((b) => b.text() === 'Delete')!;
+    await deleteButton.trigger('click');
+
+    expect(wrapper.text()).toContain('contract.pdf');
+
+    const confirmButton = wrapper.find('.form-actions').findAll('button')[1];
+    await confirmButton.trigger('click');
+    expect(store.removeAttachment).toHaveBeenCalledWith('c-1', 'a-1');
   });
 
   it('omits the upload control without attachments:write but always shows Download', async () => {

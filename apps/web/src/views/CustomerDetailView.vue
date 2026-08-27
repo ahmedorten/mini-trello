@@ -15,6 +15,8 @@ import AppStateBlock from '@/components/AppStateBlock.vue';
 import AppBadge from '@/components/AppBadge.vue';
 import AppTabs from '@/components/AppTabs.vue';
 import CommunicationTimeline from '@/components/CommunicationTimeline.vue';
+import AppButton from '@/components/AppButton.vue';
+import AppConfirmDialog from '@/components/AppConfirmDialog.vue';
 import type { AppTab } from '@/components/tabs';
 
 const route = useRoute();
@@ -98,9 +100,45 @@ async function submitEditNote(note: CustomerNote): Promise<void> {
   }
 }
 
-async function removeNote(note: CustomerNote): Promise<void> {
-  if (window.confirm(t('customer.detail.deleteNoteConfirm'))) {
-    await customers.removeNote(customerId.value, note.id);
+type PendingDelete =
+  | { kind: 'note'; id: string }
+  | { kind: 'attachment'; id: string; fileName: string };
+
+const pendingDelete = ref<PendingDelete | null>(null);
+
+const pendingDeleteMessageKey = computed(() =>
+  pendingDelete.value?.kind === 'attachment'
+    ? 'customer.detail.deleteAttachmentConfirm'
+    : 'customer.detail.deleteNoteConfirm',
+);
+
+const pendingDeleteMessageParams = computed(() =>
+  pendingDelete.value?.kind === 'attachment' ? { fileName: pendingDelete.value.fileName } : undefined,
+);
+
+function requestDeleteNote(note: CustomerNote): void {
+  customers.error = null;
+  pendingDelete.value = { kind: 'note', id: note.id };
+}
+
+function requestDeleteAttachment(attachment: CustomerAttachment): void {
+  customers.error = null;
+  pendingDelete.value = { kind: 'attachment', id: attachment.id, fileName: attachment.fileName };
+}
+
+async function confirmDelete(): Promise<void> {
+  const pending = pendingDelete.value;
+
+  if (!pending) {
+    return;
+  }
+
+  pendingDelete.value = null;
+
+  if (pending.kind === 'note') {
+    await customers.removeNote(customerId.value, pending.id);
+  } else {
+    await customers.removeAttachment(customerId.value, pending.id);
   }
 }
 
@@ -127,12 +165,6 @@ async function submitUpload(): Promise<void> {
 
 async function download(attachment: CustomerAttachment): Promise<void> {
   await customers.downloadFile(customerId.value, attachment);
-}
-
-async function removeAttachment(attachment: CustomerAttachment): Promise<void> {
-  if (window.confirm(t('customer.detail.deleteAttachmentConfirm', { fileName: attachment.fileName }))) {
-    await customers.removeAttachment(customerId.value, attachment.id);
-  }
 }
 
 function attachmentSize(bytes: number): string {
@@ -244,7 +276,7 @@ onUnmounted(() => {
             {{ t('customer.detail.addNote') }}
             <textarea v-model="newNoteBody" rows="3" required />
           </label>
-          <button type="submit">{{ t('common.save') }}</button>
+          <AppButton type="submit" variant="primary">{{ t('common.save') }}</AppButton>
         </form>
 
         <p v-if="!customers.notes.length">{{ t('customer.detail.noNotes') }}</p>
@@ -254,8 +286,8 @@ onUnmounted(() => {
             <template v-if="editingNoteId === note.id">
               <textarea v-model="editingNoteBody" rows="3" />
               <div class="customer-detail__note-actions">
-                <button type="button" @click="submitEditNote(note)">{{ t('common.save') }}</button>
-                <button type="button" @click="cancelEditNote">{{ t('common.cancel') }}</button>
+                <AppButton variant="primary" size="sm" @click="submitEditNote(note)">{{ t('common.save') }}</AppButton>
+                <AppButton variant="secondary" size="sm" @click="cancelEditNote">{{ t('common.cancel') }}</AppButton>
               </div>
             </template>
             <template v-else>
@@ -264,8 +296,8 @@ onUnmounted(() => {
               </p>
               <p class="customer-detail__note-body">{{ note.body }}</p>
               <div v-if="isOwnNote(note)" class="customer-detail__note-actions">
-                <button type="button" @click="startEditNote(note)">{{ t('common.edit') }}</button>
-                <button type="button" @click="removeNote(note)">{{ t('common.delete') }}</button>
+                <AppButton variant="ghost" size="sm" @click="startEditNote(note)">{{ t('common.edit') }}</AppButton>
+                <AppButton variant="danger" size="sm" @click="requestDeleteNote(note)">{{ t('common.delete') }}</AppButton>
               </div>
             </template>
           </li>
@@ -275,7 +307,9 @@ onUnmounted(() => {
       <div v-else-if="activeTab === 'attachments'" class="customer-detail__panel">
         <div v-if="auth.can('attachments:write')" class="customer-detail__upload">
           <input type="file" @change="onFileChange">
-          <button type="button" :disabled="!pendingFile" @click="submitUpload">{{ t('attachment.upload') }}</button>
+          <AppButton variant="primary" size="sm" :disabled="!pendingFile" @click="submitUpload">
+            {{ t('attachment.upload') }}
+          </AppButton>
           <p class="customer-detail__hint">{{ t('customer.detail.uploadHint') }}</p>
         </div>
 
@@ -288,10 +322,15 @@ onUnmounted(() => {
             <span>{{ attachment.uploadedBy.fullName }}</span>
             <span>{{ d(new Date(attachment.createdAt), 'long') }}</span>
             <div class="customer-detail__attachment-actions">
-              <button type="button" @click="download(attachment)">{{ t('attachment.download') }}</button>
-              <button v-if="auth.can('attachments:write')" type="button" @click="removeAttachment(attachment)">
+              <AppButton variant="ghost" size="sm" @click="download(attachment)">{{ t('attachment.download') }}</AppButton>
+              <AppButton
+                v-if="auth.can('attachments:write')"
+                variant="danger"
+                size="sm"
+                @click="requestDeleteAttachment(attachment)"
+              >
                 {{ t('common.delete') }}
-              </button>
+              </AppButton>
             </div>
           </li>
         </ul>
@@ -311,6 +350,14 @@ onUnmounted(() => {
         </p>
       </div>
     </template>
+
+    <AppConfirmDialog
+      :open="pendingDelete !== null"
+      :message-key="pendingDeleteMessageKey"
+      :message-params="pendingDeleteMessageParams"
+      @update:open="pendingDelete = null"
+      @confirm="confirmDelete"
+    />
   </section>
 </template>
 

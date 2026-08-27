@@ -9,6 +9,8 @@ import AppPagination from '@/components/AppPagination.vue';
 import AppBadge from '@/components/AppBadge.vue';
 import AppButton from '@/components/AppButton.vue';
 import AppSortHeader from '@/components/AppSortHeader.vue';
+import AppModal from '@/components/AppModal.vue';
+import AppConfirmDialog from '@/components/AppConfirmDialog.vue';
 
 const auth = useAuthStore();
 const users = useUsersStore();
@@ -74,6 +76,18 @@ function onSort(field: string): void {
   users.setSort(field as UserSortField);
 }
 
+/** Product rule 8. Two bugs in one line: four panels bound the same
+ *  users.error, so a failed create surfaced inside a different user's edit
+ *  form; and openEdit/openRoles/openReset cleared none of the others, so two
+ *  panels could be open at once. */
+function closeAllPanels(): void {
+  showCreateForm.value = false;
+  editingUser.value = null;
+  rolesEditingUser.value = null;
+  resettingUser.value = null;
+  users.error = null;
+}
+
 // --- create ----------------------------------------------------------------
 
 const showCreateForm = ref(false);
@@ -86,6 +100,7 @@ const createForm = reactive({
 });
 
 function openCreate(): void {
+  closeAllPanels();
   createForm.email = '';
   createForm.fullName = '';
   createForm.password = '';
@@ -118,6 +133,7 @@ const editingUser = ref<UserSummary | null>(null);
 const editForm = reactive({ fullName: '', email: '', departmentId: '' });
 
 function openEdit(user: UserSummary): void {
+  closeAllPanels();
   editingUser.value = user;
   editForm.fullName = user.fullName;
   editForm.email = user.email;
@@ -150,6 +166,7 @@ const rolesEditingUser = ref<UserSummary | null>(null);
 const rolesForm = ref<string[]>([]);
 
 function openRoles(user: UserSummary): void {
+  closeAllPanels();
   rolesEditingUser.value = user;
   rolesForm.value = [...user.roles];
 }
@@ -176,6 +193,7 @@ const resettingUser = ref<UserSummary | null>(null);
 const resetForm = reactive({ password: '' });
 
 function openReset(user: UserSummary): void {
+  closeAllPanels();
   resettingUser.value = user;
   resetForm.password = '';
 }
@@ -198,10 +216,22 @@ async function submitReset(): Promise<void> {
 
 // --- status ----------------------------------------------------------------
 
-async function deactivate(user: UserSummary): Promise<void> {
-  if (window.confirm(t('user.action.deactivateConfirm', { name: user.fullName }))) {
-    await users.setStatus(user.id, false);
+const pendingDeactivate = ref<UserSummary | null>(null);
+
+function requestDeactivate(user: UserSummary): void {
+  users.error = null;
+  pendingDeactivate.value = user;
+}
+
+async function confirmDeactivate(): Promise<void> {
+  const user = pendingDeactivate.value;
+
+  if (!user) {
+    return;
   }
+
+  pendingDeactivate.value = null;
+  await users.setStatus(user.id, false);
 }
 
 async function reactivate(user: UserSummary): Promise<void> {
@@ -249,10 +279,9 @@ onMounted(() => {
       </label>
     </form>
 
-    <div v-if="showCreateForm" class="users__panel">
-      <h2>{{ t('user.form.createTitle') }}</h2>
-      <form @submit.prevent="submitCreate">
-        <div v-if="users.error" role="alert" class="users__error">{{ users.error }}</div>
+    <AppModal :open="showCreateForm" title-key="user.form.createTitle" @update:open="cancelCreate">
+      <form class="users__modal-form" @submit.prevent="submitCreate">
+        <div v-if="users.error" role="alert" class="form-error">{{ users.error }}</div>
 
         <label>
           {{ t('user.field.email') }}
@@ -283,12 +312,14 @@ onMounted(() => {
           </label>
         </fieldset>
 
-        <div class="users__panel-actions">
-          <button type="submit" :disabled="createForm.roleKeys.length === 0">{{ t('common.save') }}</button>
-          <button type="button" @click="cancelCreate">{{ t('common.cancel') }}</button>
+        <div class="form-actions">
+          <AppButton type="submit" variant="primary" :disabled="createForm.roleKeys.length === 0">
+            {{ t('common.save') }}
+          </AppButton>
+          <AppButton type="button" variant="secondary" @click="cancelCreate">{{ t('common.cancel') }}</AppButton>
         </div>
       </form>
-    </div>
+    </AppModal>
 
     <AppStateBlock v-if="users.isLoading && !users.items.length" variant="loading" :message="t('user.list.loading')" />
 
@@ -329,25 +360,31 @@ onMounted(() => {
               </td>
               <td>{{ user.lastLoginAt ? d(new Date(user.lastLoginAt), 'long') : t('user.status.never') }}</td>
               <td class="data-table__actions">
-                <button v-if="auth.can('users:write')" type="button" @click="openEdit(user)">{{ t('common.edit') }}</button>
-                <button v-if="auth.can('roles:assign')" type="button" @click="openRoles(user)">{{ t('user.action.roles') }}</button>
-                <button
+                <AppButton v-if="auth.can('users:write')" variant="ghost" size="sm" @click="openEdit(user)">
+                  {{ t('common.edit') }}
+                </AppButton>
+                <AppButton v-if="auth.can('roles:assign')" variant="ghost" size="sm" @click="openRoles(user)">
+                  {{ t('user.action.roles') }}
+                </AppButton>
+                <AppButton
                   v-if="auth.can('users:deactivate') && !isOwnRow(user) && user.isActive"
-                  type="button"
-                  @click="deactivate(user)"
+                  variant="danger"
+                  size="sm"
+                  @click="requestDeactivate(user)"
                 >
                   {{ t('user.action.deactivate') }}
-                </button>
-                <button
+                </AppButton>
+                <AppButton
                   v-if="auth.can('users:deactivate') && !isOwnRow(user) && !user.isActive"
-                  type="button"
+                  variant="ghost"
+                  size="sm"
                   @click="reactivate(user)"
                 >
                   {{ t('user.action.reactivate') }}
-                </button>
-                <button v-if="auth.can('users:write')" type="button" @click="openReset(user)">
+                </AppButton>
+                <AppButton v-if="auth.can('users:write')" variant="ghost" size="sm" @click="openReset(user)">
                   {{ t('user.action.resetPassword') }}
-                </button>
+                </AppButton>
               </td>
             </tr>
           </tbody>
@@ -367,10 +404,10 @@ onMounted(() => {
       </div>
     </template>
 
-    <div v-if="editingUser" class="users__panel">
-      <h2>{{ t('user.form.editTitle', { name: editingUser.fullName }) }}</h2>
-      <form @submit.prevent="submitEdit">
-        <div v-if="users.error" role="alert" class="users__error">{{ users.error }}</div>
+    <AppModal :open="editingUser !== null" title-key="user.form.editTitle" @update:open="cancelEdit">
+      <p class="users__modal-subject">{{ editingUser?.fullName }}</p>
+      <form class="users__modal-form" @submit.prevent="submitEdit">
+        <div v-if="users.error" role="alert" class="form-error">{{ users.error }}</div>
 
         <label>
           {{ t('user.field.fullName') }}
@@ -390,47 +427,56 @@ onMounted(() => {
           </select>
         </label>
 
-        <div class="users__panel-actions">
-          <button type="submit">{{ t('common.save') }}</button>
-          <button type="button" @click="cancelEdit">{{ t('common.cancel') }}</button>
+        <div class="form-actions">
+          <AppButton type="submit" variant="primary">{{ t('common.save') }}</AppButton>
+          <AppButton type="button" variant="secondary" @click="cancelEdit">{{ t('common.cancel') }}</AppButton>
         </div>
       </form>
-    </div>
+    </AppModal>
 
-    <div v-if="rolesEditingUser" class="users__panel">
-      <h2>{{ t('user.form.rolesTitle', { name: rolesEditingUser.fullName }) }}</h2>
-      <form @submit.prevent="submitRoles">
-        <div v-if="users.error" role="alert" class="users__error">{{ users.error }}</div>
+    <AppModal :open="rolesEditingUser !== null" title-key="user.form.rolesTitle" @update:open="cancelRoles">
+      <p class="users__modal-subject">{{ rolesEditingUser?.fullName }}</p>
+      <form class="users__modal-form" @submit.prevent="submitRoles">
+        <div v-if="users.error" role="alert" class="form-error">{{ users.error }}</div>
 
         <label v-for="role in availableRoles" :key="role.key" class="users__checkbox">
           <input v-model="rolesForm" type="checkbox" :value="role.key">
           {{ role.name }}
         </label>
 
-        <div class="users__panel-actions">
-          <button type="submit">{{ t('common.save') }}</button>
-          <button type="button" @click="cancelRoles">{{ t('common.cancel') }}</button>
+        <div class="form-actions">
+          <AppButton type="submit" variant="primary">{{ t('common.save') }}</AppButton>
+          <AppButton type="button" variant="secondary" @click="cancelRoles">{{ t('common.cancel') }}</AppButton>
         </div>
       </form>
-    </div>
+    </AppModal>
 
-    <div v-if="resettingUser" class="users__panel">
-      <h2>{{ t('user.form.resetTitle', { name: resettingUser.fullName }) }}</h2>
-      <p>{{ t('user.form.resetHint', { name: resettingUser.fullName }) }}</p>
-      <form @submit.prevent="submitReset">
-        <div v-if="users.error" role="alert" class="users__error">{{ users.error }}</div>
+    <AppModal :open="resettingUser !== null" title-key="user.form.resetTitle" @update:open="cancelReset">
+      <p class="users__modal-subject">{{ resettingUser?.fullName }}</p>
+      <p>{{ t('user.form.resetHint', { name: resettingUser?.fullName ?? '' }) }}</p>
+      <form class="users__modal-form" @submit.prevent="submitReset">
+        <div v-if="users.error" role="alert" class="form-error">{{ users.error }}</div>
 
         <label>
           {{ t('user.field.newPassword') }}
           <input v-model="resetForm.password" type="password" required>
         </label>
 
-        <div class="users__panel-actions">
-          <button type="submit">{{ t('common.save') }}</button>
-          <button type="button" @click="cancelReset">{{ t('common.cancel') }}</button>
+        <div class="form-actions">
+          <AppButton type="submit" variant="primary">{{ t('common.save') }}</AppButton>
+          <AppButton type="button" variant="secondary" @click="cancelReset">{{ t('common.cancel') }}</AppButton>
         </div>
       </form>
-    </div>
+    </AppModal>
+
+    <AppConfirmDialog
+      :open="pendingDeactivate !== null"
+      message-key="user.action.deactivateConfirm"
+      :message-params="{ name: pendingDeactivate?.fullName }"
+      confirm-label-key="user.action.deactivate"
+      @update:open="pendingDeactivate = null"
+      @confirm="confirmDeactivate"
+    />
   </section>
 </template>
 
@@ -442,34 +488,22 @@ onMounted(() => {
   margin-block-end: var(--space-5);
 }
 
-.users__error {
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius);
-  background: var(--color-error-soft);
-  border: 1px solid var(--color-error);
-  color: var(--color-error);
-  margin-block-end: var(--space-4);
-}
-
 .users__error-block {
   margin-block-end: var(--space-4);
 }
 
-.users__panel {
-  margin-block-start: var(--space-5);
-  padding: var(--space-5);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+.users__modal-subject {
+  margin: 0 0 var(--space-4);
+  font-weight: var(--font-weight-semibold);
 }
 
-.users__panel form {
+.users__modal-form {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
 }
 
-.users__panel label {
+.users__modal-form label {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -478,11 +512,6 @@ onMounted(() => {
 .users__checkbox {
   flex-direction: row !important;
   align-items: center;
-  gap: var(--space-2);
-}
-
-.users__panel-actions {
-  display: flex;
   gap: var(--space-2);
 }
 </style>

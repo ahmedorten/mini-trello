@@ -11,6 +11,7 @@ import {
   type TicketPriority,
   type UpdateTicketPayload,
 } from '@/api/tickets';
+import AppButton from '@/components/AppButton.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -96,7 +97,7 @@ function cancel(): void {
     <h1>{{ isEdit ? t('ticket.form.editTitle') : t('ticket.form.newTitle') }}</h1>
 
     <form class="ticket-form" @submit.prevent="submit">
-      <div v-if="tickets.error" role="alert" class="ticket-form__error">{{ tickets.error }}</div>
+      <div v-if="tickets.error" role="alert" class="form-error">{{ tickets.error }}</div>
 
       <fieldset>
         <legend>{{ t('ticket.form.section.ticket') }}</legend>
@@ -155,14 +156,16 @@ function cancel(): void {
         </label>
       </fieldset>
 
-      <div class="ticket-form__actions">
-        <button
+      <div class="form-actions">
+        <AppButton
           type="submit"
-          :disabled="tickets.isSaving || form.subject.trim().length < 2 || form.description.trim().length < 1"
+          variant="primary"
+          :loading="tickets.isSaving"
+          :disabled="form.subject.trim().length < 2 || form.description.trim().length < 1"
         >
           {{ t('common.save') }}
-        </button>
-        <button type="button" @click="cancel">{{ t('common.cancel') }}</button>
+        </AppButton>
+        <AppButton type="button" variant="secondary" @click="cancel">{{ t('common.cancel') }}</AppButton>
       </div>
     </form>
   </section>
@@ -195,16 +198,4 @@ function cancel(): void {
   margin: 0;
 }
 
-.ticket-form__error {
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius);
-  background: var(--color-error-soft);
-  border: 1px solid var(--color-error);
-  color: var(--color-error);
-}
-
-.ticket-form__actions {
-  display: flex;
-  gap: var(--space-2);
-}
 </style>

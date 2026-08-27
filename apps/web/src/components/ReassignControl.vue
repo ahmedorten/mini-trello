@@ -112,7 +112,7 @@ function unassign(): void {
       </AppButton>
     </template>
 
-    <p v-if="error" role="alert" class="reassign-control__error">{{ error }}</p>
+    <p v-if="error" role="alert" class="form-error reassign-control__error">{{ error }}</p>
   </div>
 </template>
 
@@ -124,13 +124,14 @@ function unassign(): void {
   flex-wrap: wrap;
 }
 
+/* Product rule 2 (Story 27): the select is inline in a table cell and stays
+ * content-sized rather than stretching to the global inline-size: 100%. */
 .reassign-control__select {
+  inline-size: auto;
   font: inherit;
 }
 
 .reassign-control__error {
-  color: var(--color-error);
-  font-size: var(--font-size-xs);
   margin: 0;
   flex-basis: 100%;
 }

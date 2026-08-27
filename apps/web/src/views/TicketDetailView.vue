@@ -16,6 +16,8 @@ import AppBadge from '@/components/AppBadge.vue';
 import AppTabs from '@/components/AppTabs.vue';
 import CommunicationTimeline from '@/components/CommunicationTimeline.vue';
 import ReassignControl from '@/components/ReassignControl.vue';
+import AppButton from '@/components/AppButton.vue';
+import AppConfirmDialog from '@/components/AppConfirmDialog.vue';
 import type { AppTab } from '@/components/tabs';
 
 const route = useRoute();
@@ -83,9 +85,45 @@ async function submitEditComment(comment: TicketComment): Promise<void> {
   }
 }
 
-async function removeComment(comment: TicketComment): Promise<void> {
-  if (window.confirm(t('ticket.detail.deleteCommentConfirm'))) {
-    await tickets.removeComment(ticketId.value, comment.id);
+type PendingDelete =
+  | { kind: 'comment'; id: string }
+  | { kind: 'attachment'; id: string; fileName: string };
+
+const pendingDelete = ref<PendingDelete | null>(null);
+
+const pendingDeleteMessageKey = computed(() =>
+  pendingDelete.value?.kind === 'attachment'
+    ? 'ticket.detail.deleteAttachmentConfirm'
+    : 'ticket.detail.deleteCommentConfirm',
+);
+
+const pendingDeleteMessageParams = computed(() =>
+  pendingDelete.value?.kind === 'attachment' ? { fileName: pendingDelete.value.fileName } : undefined,
+);
+
+function requestDeleteComment(comment: TicketComment): void {
+  tickets.error = null;
+  pendingDelete.value = { kind: 'comment', id: comment.id };
+}
+
+function requestDeleteAttachment(attachment: TicketAttachment): void {
+  tickets.error = null;
+  pendingDelete.value = { kind: 'attachment', id: attachment.id, fileName: attachment.fileName };
+}
+
+async function confirmDelete(): Promise<void> {
+  const pending = pendingDelete.value;
+
+  if (!pending) {
+    return;
+  }
+
+  pendingDelete.value = null;
+
+  if (pending.kind === 'comment') {
+    await tickets.removeComment(ticketId.value, pending.id);
+  } else {
+    await tickets.removeAttachment(ticketId.value, pending.id);
   }
 }
 
@@ -116,12 +154,6 @@ async function download(attachment: TicketAttachment): Promise<void> {
 
 function isOwnAttachment(attachment: TicketAttachment): boolean {
   return attachment.uploadedBy.id === auth.user?.id;
-}
-
-async function removeAttachment(attachment: TicketAttachment): Promise<void> {
-  if (window.confirm(t('ticket.detail.deleteAttachmentConfirm', { fileName: attachment.fileName }))) {
-    await tickets.removeAttachment(ticketId.value, attachment.id);
-  }
 }
 
 function attachmentSize(bytes: number): string {
@@ -239,7 +271,7 @@ onUnmounted(() => {
             {{ t('ticket.detail.addComment') }}
             <textarea v-model="newCommentBody" rows="3" required />
           </label>
-          <button type="submit">{{ t('common.save') }}</button>
+          <AppButton type="submit" variant="primary">{{ t('common.save') }}</AppButton>
         </form>
 
         <p v-if="!tickets.comments.length">{{ t('ticket.detail.noComments') }}</p>
@@ -249,8 +281,8 @@ onUnmounted(() => {
             <template v-if="editingCommentId === comment.id">
               <textarea v-model="editingCommentBody" rows="3" />
               <div class="ticket-detail__comment-actions">
-                <button type="button" @click="submitEditComment(comment)">{{ t('common.save') }}</button>
-                <button type="button" @click="cancelEditComment">{{ t('common.cancel') }}</button>
+                <AppButton variant="primary" size="sm" @click="submitEditComment(comment)">{{ t('common.save') }}</AppButton>
+                <AppButton variant="secondary" size="sm" @click="cancelEditComment">{{ t('common.cancel') }}</AppButton>
               </div>
             </template>
             <template v-else>
@@ -262,10 +294,10 @@ onUnmounted(() => {
                 v-if="isOwnComment(comment) || auth.can('tickets:manage')"
                 class="ticket-detail__comment-actions"
               >
-                <button v-if="isOwnComment(comment)" type="button" @click="startEditComment(comment)">
+                <AppButton v-if="isOwnComment(comment)" variant="ghost" size="sm" @click="startEditComment(comment)">
                   {{ t('common.edit') }}
-                </button>
-                <button type="button" @click="removeComment(comment)">{{ t('common.delete') }}</button>
+                </AppButton>
+                <AppButton variant="danger" size="sm" @click="requestDeleteComment(comment)">{{ t('common.delete') }}</AppButton>
               </div>
             </template>
           </li>
@@ -275,7 +307,9 @@ onUnmounted(() => {
       <div v-else-if="activeTab === 'attachments'" class="ticket-detail__panel">
         <div v-if="auth.can('ticket-attachments:write')" class="ticket-detail__upload">
           <input type="file" @change="onFileChange">
-          <button type="button" :disabled="!pendingFile" @click="submitUpload">{{ t('attachment.upload') }}</button>
+          <AppButton variant="primary" size="sm" :disabled="!pendingFile" @click="submitUpload">
+            {{ t('attachment.upload') }}
+          </AppButton>
           <p class="ticket-detail__hint">{{ t('attachment.hint') }}</p>
         </div>
 
@@ -288,14 +322,15 @@ onUnmounted(() => {
             <span>{{ attachment.uploadedBy.fullName }}</span>
             <span>{{ d(new Date(attachment.createdAt), 'long') }}</span>
             <div class="ticket-detail__attachment-actions">
-              <button type="button" @click="download(attachment)">{{ t('attachment.download') }}</button>
-              <button
+              <AppButton variant="ghost" size="sm" @click="download(attachment)">{{ t('attachment.download') }}</AppButton>
+              <AppButton
                 v-if="isOwnAttachment(attachment) || auth.can('tickets:manage')"
-                type="button"
-                @click="removeAttachment(attachment)"
+                variant="danger"
+                size="sm"
+                @click="requestDeleteAttachment(attachment)"
               >
                 {{ t('common.delete') }}
-              </button>
+              </AppButton>
             </div>
           </li>
         </ul>
@@ -327,6 +362,14 @@ onUnmounted(() => {
         </ul>
       </div>
     </template>
+
+    <AppConfirmDialog
+      :open="pendingDelete !== null"
+      :message-key="pendingDeleteMessageKey"
+      :message-params="pendingDeleteMessageParams"
+      @update:open="pendingDelete = null"
+      @confirm="confirmDelete"
+    />
   </section>
 </template>
 
