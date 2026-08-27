@@ -1,4 +1,8 @@
-import { ExecutionContext, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import {
+  ExecutionContext,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InboundSecretGuard } from './inbound-secret.guard';
 
@@ -40,8 +44,8 @@ describe('InboundSecretGuard', () => {
   });
 
   it('allows an exact match', () => {
-    expect(
-      guardWith(SECRET).canActivate(contextWith({ 'x-communication-secret': SECRET })),
-    ).toBe(true);
+    expect(guardWith(SECRET).canActivate(contextWith({ 'x-communication-secret': SECRET }))).toBe(
+      true,
+    );
   });
 });

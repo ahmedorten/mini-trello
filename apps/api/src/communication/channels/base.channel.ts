@@ -76,16 +76,16 @@ export abstract class BaseChannel implements ChannelAdapter {
     return address ? `${this.channel}:${address}` : null;
   }
 
-  async dispatch(): Promise<DispatchResult> {
+  dispatch(): Promise<DispatchResult> {
     // No transport exists in this repo (Product rule 5). Recording it IS the
     // send. An adapter that overrides this must also flip providerConfigured,
     // and channel-registry.service.spec.ts enforces that pairing.
-    return {
+    return Promise.resolve({
       status: InteractionDeliveryStatus.LOGGED,
       externalId: null,
       failureReason: null,
       metadata: null,
-    };
+    });
   }
 
   parseInbound(payload: InboundPayload): NormalisedInbound {

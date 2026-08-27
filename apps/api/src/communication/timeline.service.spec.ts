@@ -27,13 +27,13 @@ function buildCaller(overrides: Partial<AuthenticatedUser> = {}): AuthenticatedU
 }
 
 function query(overrides: Partial<ListTimelineQueryDto> = {}): ListTimelineQueryDto {
-  return { page: 1, pageSize: 20, ...overrides } as ListTimelineQueryDto;
+  return { page: 1, pageSize: 20, ...overrides };
 }
 
 function conversationQuery(
   overrides: Partial<ListConversationsQueryDto> = {},
 ): ListConversationsQueryDto {
-  return { page: 1, pageSize: 20, ...overrides } as ListConversationsQueryDto;
+  return { page: 1, pageSize: 20, ...overrides };
 }
 
 const baseRow = {
@@ -81,7 +81,11 @@ describe('TimelineService', () => {
 
   /** The `where` the service handed to findMany. */
   function capturedWhere(): Record<string, unknown> {
-    return prisma.customerInteraction.findMany.mock.calls[0][0].where as Record<string, unknown>;
+    const call = prisma.customerInteraction.findMany.mock.calls[0] as [
+      { where: Record<string, unknown> },
+    ];
+
+    return call[0].where;
   }
 
   describe('list — filters', () => {
@@ -299,9 +303,7 @@ describe('TimelineService', () => {
       expect(prisma.customerInteraction.findMany).toHaveBeenCalledWith(
         containing({
           where: {
-            OR: [
-              containing({ threadKey: null, customerId: 'customer-1' }),
-            ],
+            OR: [containing({ threadKey: null, customerId: 'customer-1' })],
           },
         }),
       );

@@ -3,10 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { INTERACTION_SELECT, InteractionsService } from '../customers/interactions.service';
-import {
-  ListConversationsQueryDto,
-  ListTimelineQueryDto,
-} from './dto/list-timeline-query.dto';
+import { ListConversationsQueryDto, ListTimelineQueryDto } from './dto/list-timeline-query.dto';
 import { ConversationDto, ConversationListDto, PaginatedTimelineDto } from './dto/timeline.dto';
 
 @Injectable()

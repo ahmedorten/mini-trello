@@ -25,9 +25,7 @@ export class ChannelRegistryService {
 
     // Boot-time exhaustiveness. A ninth enum value with no adapter must fail
     // at startup, not on the first request that happens to use it.
-    const missing = Object.values(InteractionChannel).filter(
-      (value) => !this.byChannel.has(value),
-    );
+    const missing = Object.values(InteractionChannel).filter((value) => !this.byChannel.has(value));
 
     if (missing.length > 0) {
       throw new Error(`No ChannelAdapter registered for: ${missing.join(', ')}`);

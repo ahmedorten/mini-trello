@@ -14,14 +14,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { InteractionResponseDto } from '../customers/dto/interaction.dto';
-import {
-  COMMUNICATION_SEND_PERMISSION,
-  CommunicationService,
-} from './communication.service';
-import {
-  ListConversationsQueryDto,
-  ListTimelineQueryDto,
-} from './dto/list-timeline-query.dto';
+import { COMMUNICATION_SEND_PERMISSION, CommunicationService } from './communication.service';
+import { ListConversationsQueryDto, ListTimelineQueryDto } from './dto/list-timeline-query.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { ConversationListDto, PaginatedTimelineDto } from './dto/timeline.dto';
 import { TimelineService } from './timeline.service';

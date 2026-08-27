@@ -36,6 +36,9 @@ export class WebFormChannel extends BaseChannel {
     return lowered;
   }
 
+  // async with no internal await is deliberate: it turns the throw below into
+  // a rejected promise, matching every caller's `await dispatch()` contract.
+  // eslint-disable-next-line @typescript-eslint/require-await
   async dispatch(): Promise<DispatchResult> {
     // A form is a one-way intake. Reaching here means the dispatch route
     // ignored canRespond; fail loudly rather than writing a row that claims a

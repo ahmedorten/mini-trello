@@ -67,15 +67,15 @@ function buildAdapter(overrides: Partial<ChannelAdapter> = {}) {
 
       return 'EMAIL:layla@crm.local';
     }),
-    dispatch: jest.fn(async () => {
+    dispatch: jest.fn(() => {
       calls.push('dispatch');
 
-      return {
+      return Promise.resolve({
         status: InteractionDeliveryStatus.LOGGED,
         externalId: null,
         failureReason: null,
         metadata: null,
-      };
+      });
     }),
     parseInbound: jest.fn(() => ({
       subject: 'Quote request',
