@@ -4,6 +4,7 @@ import type {
   CreateInteractionPayload,
   CustomerInteraction,
   InteractionChannel,
+  InteractionDeliveryStatus,
   InteractionDirection,
   UserRef,
 } from './customers';
@@ -219,6 +220,7 @@ export async function listTicketHistory(ticketId: string): Promise<TicketHistory
 export interface ListTicketInteractionsParams {
   channel?: InteractionChannel;
   direction?: InteractionDirection;
+  deliveryStatus?: InteractionDeliveryStatus;
   includeCustomerHistory?: boolean;
 }
 

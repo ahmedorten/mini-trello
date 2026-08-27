@@ -3,16 +3,13 @@ import { createPinia, setActivePinia } from 'pinia';
 import { useCustomersStore } from './customers';
 import {
   createCustomer,
-  createInteraction,
   createNote,
   deleteAttachment,
-  deleteInteraction,
   deleteNote,
   downloadAttachment,
   getCustomer,
   listAttachments,
   listCustomers,
-  listInteractions,
   listNotes,
   setCustomerStatus,
   updateCustomer,
@@ -20,7 +17,6 @@ import {
   uploadAttachment,
   type Customer,
   type CustomerAttachment,
-  type CustomerInteraction,
   type CustomerNote,
   type PaginatedCustomers,
 } from '@/api/customers';
@@ -40,9 +36,6 @@ vi.mock('@/api/customers', () => ({
   uploadAttachment: vi.fn(),
   downloadAttachment: vi.fn(),
   deleteAttachment: vi.fn(),
-  listInteractions: vi.fn(),
-  createInteraction: vi.fn(),
-  deleteInteraction: vi.fn(),
 }));
 
 vi.mock('@/api/users', () => ({
@@ -62,9 +55,6 @@ const mockedListAttachments = vi.mocked(listAttachments);
 const mockedUploadAttachment = vi.mocked(uploadAttachment);
 const mockedDownloadAttachment = vi.mocked(downloadAttachment);
 const mockedDeleteAttachment = vi.mocked(deleteAttachment);
-const mockedListInteractions = vi.mocked(listInteractions);
-const mockedCreateInteraction = vi.mocked(createInteraction);
-const mockedDeleteInteraction = vi.mocked(deleteInteraction);
 const mockedListAgents = vi.mocked(listAgents);
 
 const sampleCustomer: Customer = {
@@ -111,20 +101,6 @@ const sampleAttachment: CustomerAttachment = {
   checksumSha256: 'abc',
   uploadedBy: { id: 'u-1', fullName: 'Nour Hassan', email: 'nour@crm.local' },
   createdAt: '2026-08-25T00:00:00.000Z',
-};
-
-const sampleInteraction: CustomerInteraction = {
-  id: 'i-1',
-  customerId: 'c-1',
-  channel: 'PHONE',
-  direction: 'OUTBOUND',
-  subject: 'Follow-up call',
-  body: null,
-  occurredAt: '2026-08-25T00:00:00.000Z',
-  createdBy: { id: 'u-1', fullName: 'Nour Hassan', email: 'nour@crm.local' },
-  createdAt: '2026-08-25T00:00:00.000Z',
-  ticketId: null,
-  ticket: null,
 };
 
 const sampleAgent: UserSummary = {
@@ -240,7 +216,6 @@ describe('useCustomersStore', () => {
     mockedGetCustomer.mockResolvedValue(sampleCustomer);
     mockedListNotes.mockResolvedValue([sampleNote]);
     mockedListAttachments.mockResolvedValue([sampleAttachment]);
-    mockedListInteractions.mockResolvedValue([sampleInteraction]);
 
     const store = useCustomersStore();
     await store.loadDetail('c-1');
@@ -248,14 +223,17 @@ describe('useCustomersStore', () => {
     expect(store.current).toEqual(sampleCustomer);
     expect(store.notes).toEqual([sampleNote]);
     expect(store.attachments).toEqual([sampleAttachment]);
-    expect(store.interactions).toEqual([sampleInteraction]);
+    // The interaction slice moved out: CommunicationTimeline fetches its own
+    // rows, so a second copy here would be the two-owners staleness bug.
+    expect(mockedGetCustomer).toHaveBeenCalledTimes(1);
+    expect(mockedListNotes).toHaveBeenCalledTimes(1);
+    expect(mockedListAttachments).toHaveBeenCalledTimes(1);
   });
 
   it('loadDetail leaves current null and sets error on rejection', async () => {
     mockedGetCustomer.mockRejectedValue(new Error('not found'));
     mockedListNotes.mockResolvedValue([]);
     mockedListAttachments.mockResolvedValue([]);
-    mockedListInteractions.mockResolvedValue([]);
 
     const store = useCustomersStore();
     await store.loadDetail('missing');
@@ -300,7 +278,6 @@ describe('useCustomersStore', () => {
     mockedGetCustomer.mockResolvedValue(sampleCustomer);
     mockedListNotes.mockResolvedValue([]);
     mockedListAttachments.mockResolvedValue([]);
-    mockedListInteractions.mockResolvedValue([]);
 
     const store = useCustomersStore();
 
@@ -319,7 +296,6 @@ describe('useCustomersStore', () => {
     mockedGetCustomer.mockResolvedValue(sampleCustomer);
     mockedListNotes.mockResolvedValue([]);
     mockedListAttachments.mockResolvedValue([]);
-    mockedListInteractions.mockResolvedValue([]);
 
     const store = useCustomersStore();
 
@@ -413,40 +389,10 @@ describe('useCustomersStore', () => {
     expect(store.attachments).toEqual([]);
   });
 
-  it('addInteraction refreshes interactions and current on success', async () => {
-    mockedGetCustomer.mockResolvedValue(sampleCustomer);
-    mockedListInteractions.mockResolvedValue([sampleInteraction]);
-    mockedCreateInteraction.mockResolvedValueOnce(sampleInteraction);
-    const store = useCustomersStore();
-
-    const ok = await store.addInteraction('c-1', {
-      channel: 'PHONE',
-      direction: 'OUTBOUND',
-      subject: 'Follow-up call',
-      occurredAt: '2026-08-25T00:00:00.000Z',
-    });
-
-    expect(ok).toBe(true);
-    expect(store.interactions).toEqual([sampleInteraction]);
-  });
-
-  it('removeInteraction refreshes interactions and current on success', async () => {
-    mockedGetCustomer.mockResolvedValue(sampleCustomer);
-    mockedListInteractions.mockResolvedValue([]);
-    mockedDeleteInteraction.mockResolvedValueOnce(undefined);
-    const store = useCustomersStore();
-
-    const ok = await store.removeInteraction('c-1', 'i-1');
-
-    expect(ok).toBe(true);
-    expect(store.interactions).toEqual([]);
-  });
-
-  it('clearDetail empties current and all three collections', async () => {
+  it('clearDetail empties current and both remaining collections', async () => {
     mockedGetCustomer.mockResolvedValue(sampleCustomer);
     mockedListNotes.mockResolvedValue([sampleNote]);
     mockedListAttachments.mockResolvedValue([sampleAttachment]);
-    mockedListInteractions.mockResolvedValue([sampleInteraction]);
 
     const store = useCustomersStore();
     await store.loadDetail('c-1');
@@ -456,7 +402,6 @@ describe('useCustomersStore', () => {
     expect(store.current).toBeNull();
     expect(store.notes).toEqual([]);
     expect(store.attachments).toEqual([]);
-    expect(store.interactions).toEqual([]);
     expect(store.error).toBeNull();
   });
 });

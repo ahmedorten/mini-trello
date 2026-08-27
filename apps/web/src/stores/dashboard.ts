@@ -1,8 +1,6 @@
 import { defineStore } from 'pinia';
 import { reactive, ref } from 'vue';
 import { getAgentDashboard, type AgentDashboard, type TicketScope } from '@/api/dashboard';
-import { listChannels, type ChannelDescriptor } from '@/api/communication';
-import { INTERACTION_CHANNELS } from '@/api/customers';
 import {
   listTickets,
   type ListTicketsParams,
@@ -16,7 +14,6 @@ import { toErrorMessage } from '@/api/client';
 export const useDashboardStore = defineStore('dashboard', () => {
   const dashboard = ref<AgentDashboard | null>(null);
   const scope = ref<TicketScope>('mine');
-  const channels = ref<ChannelDescriptor[]>([]);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
@@ -84,32 +81,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
     void load();
   }
 
-  let areChannelsLoaded = false;
-
-  async function loadChannels(): Promise<void> {
-    if (areChannelsLoaded) {
-      return;
-    }
-
-    areChannelsLoaded = true;
-
-    try {
-      channels.value = await listChannels();
-    } catch {
-      // Static metadata, and canRespond is a UI hint only (Story 19 does not
-      // enforce it server-side) — failing closed here would hide the Respond
-      // composer everywhere on a transient error, which is worse than
-      // showing it and letting a genuinely unsupported POST fail visibly.
-      channels.value = INTERACTION_CHANNELS.map((key) => ({
-        key,
-        canRespond: true,
-        isRealtime: false,
-        providerConfigured: false,
-      }));
-    }
-  }
-
-  // A third, independent counter: `load()` and `loadQueue()` are both
+  // A second, independent counter: `load()` and `loadQueue()` are both
   // list-ish reads that can be in flight at once, and sharing either of
   // their counters would let one screen's response cancel the other's.
   let latestQueueRequestId = 0;
@@ -179,7 +151,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
   return {
     dashboard,
     scope,
-    channels,
     isLoading,
     error,
     queueItems,
@@ -189,7 +160,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
     queueError,
     load,
     setScope,
-    loadChannels,
     loadQueue,
     setQueueSearch,
     setQueueScope,

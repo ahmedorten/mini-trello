@@ -40,6 +40,9 @@ const navGroups = computed<NavGroup[]>(() => {
         // Preserves the exact auth.can('tickets:read') gate from the original nav.
         { to: '/tickets', icon: 'tickets', labelKey: 'nav.tickets', visible: auth.can('tickets:read') },
         { to: '/tasks', icon: 'tasks', labelKey: 'nav.tasks', visible: auth.can('tasks:read') },
+        // The Work group, not Records: an inbox is something an agent works,
+        // not a record they look up.
+        { to: '/communication', icon: 'communication', labelKey: 'nav.communication', visible: auth.can('customers:read') },
       ],
     },
     {

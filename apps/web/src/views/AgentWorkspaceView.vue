@@ -4,6 +4,7 @@ import { RouterLink, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useTicketsStore } from '@/stores/tickets';
+import { useCommunicationStore } from '@/stores/communication';
 import { useDashboardStore } from '@/stores/dashboard';
 import { useTasksStore } from '@/stores/tasks';
 import { TICKET_SCOPES, type TicketScope } from '@/api/dashboard';
@@ -31,6 +32,7 @@ const route = useRoute();
 const auth = useAuthStore();
 const tickets = useTicketsStore();
 const dashboard = useDashboardStore();
+const communication = useCommunicationStore();
 const tasks = useTasksStore();
 const { t, d, n } = useI18n();
 
@@ -237,7 +239,7 @@ watch(
 
 onMounted(() => {
   void dashboard.loadQueue();
-  void dashboard.loadChannels();
+  void communication.loadChannels();
 
   if (ticketId.value) {
     void tickets.loadDetail(ticketId.value);
@@ -399,7 +401,11 @@ onUnmounted(() => {
         </div>
 
         <div v-else-if="activeTab === 'communication'" class="workspace__panel">
-          <CommunicationTimeline :ticket-id="tickets.current.id" :customer-id="tickets.current.customer.id" />
+          <CommunicationTimeline
+            :ticket-id="tickets.current.id"
+            :customer-id="tickets.current.customer.id"
+            :customer-contact="{ email: tickets.current.customer.email, phone: null }"
+          />
         </div>
 
         <div v-else-if="activeTab === 'attachments'" class="workspace__panel">

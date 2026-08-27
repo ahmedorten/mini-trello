@@ -101,6 +101,12 @@ describe('tickets api', () => {
     createdAt: '2026-08-25T00:00:00.000Z',
     ticketId: 't-1',
     ticket: { id: 't-1', subject: 'Cannot log in' },
+    customer: { id: 'c-1', name: 'Layla Ibrahim', email: 'layla@crm.local' },
+    deliveryStatus: 'LOGGED',
+    channelAddress: null,
+    externalId: null,
+    failureReason: null,
+    threadKey: null,
   };
 
   it('listTicketInteractions forwards its three params', async () => {

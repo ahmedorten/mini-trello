@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useDashboardStore } from './dashboard';
 import { getAgentDashboard, type AgentDashboard } from '@/api/dashboard';
-import { listChannels, type ChannelDescriptor } from '@/api/communication';
 import { listTickets, type PaginatedTickets, type Ticket } from '@/api/tickets';
 
 vi.mock('@/api/dashboard', async () => {
@@ -11,10 +10,6 @@ vi.mock('@/api/dashboard', async () => {
   return { ...actual, getAgentDashboard: vi.fn() };
 });
 
-vi.mock('@/api/communication', () => ({
-  listChannels: vi.fn(),
-}));
-
 vi.mock('@/api/tickets', async () => {
   const actual = await vi.importActual<typeof import('@/api/tickets')>('@/api/tickets');
 
@@ -22,7 +17,6 @@ vi.mock('@/api/tickets', async () => {
 });
 
 const mockedGetAgentDashboard = vi.mocked(getAgentDashboard);
-const mockedListChannels = vi.mocked(listChannels);
 const mockedListTickets = vi.mocked(listTickets);
 
 const sampleDashboard: AgentDashboard = {
@@ -56,13 +50,6 @@ const sampleTicket: Ticket = {
 const samplePage: PaginatedTickets = {
   items: [sampleTicket],
   meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
-};
-
-const sampleChannel: ChannelDescriptor = {
-  key: 'EMAIL',
-  canRespond: true,
-  isRealtime: false,
-  providerConfigured: false,
 };
 
 describe('useDashboardStore', () => {
@@ -125,36 +112,6 @@ describe('useDashboardStore', () => {
 
     expect(store.scope).toBe('workable');
     expect(mockedGetAgentDashboard).toHaveBeenCalledWith('workable');
-  });
-
-  it('loadChannels populates channels on success', async () => {
-    mockedListChannels.mockResolvedValue([sampleChannel]);
-    const store = useDashboardStore();
-
-    await store.loadChannels();
-
-    expect(store.channels).toEqual([sampleChannel]);
-  });
-
-  it('loadChannels falls back to all-respondable on failure without setting error', async () => {
-    mockedListChannels.mockRejectedValue(new Error('forbidden'));
-    const store = useDashboardStore();
-
-    await store.loadChannels();
-
-    expect(store.error).toBeNull();
-    expect(store.channels.length).toBeGreaterThan(0);
-    expect(store.channels.every((channel) => channel.canRespond)).toBe(true);
-  });
-
-  it('loadChannels called twice issues only one request', async () => {
-    mockedListChannels.mockResolvedValue([sampleChannel]);
-    const store = useDashboardStore();
-
-    await store.loadChannels();
-    await store.loadChannels();
-
-    expect(mockedListChannels).toHaveBeenCalledTimes(1);
   });
 
   it('loadQueue populates queueItems and queueMeta', async () => {

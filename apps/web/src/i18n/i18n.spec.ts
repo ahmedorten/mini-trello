@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import en from './locales/en.json';
 import ar from './locales/ar.json';
 import { LOCALE_DIRECTION, SUPPORTED_LOCALES } from './index';
-import { CUSTOMER_STATUSES, CUSTOMER_TYPES, INTERACTION_CHANNELS } from '@/api/customers';
+import {
+  CUSTOMER_STATUSES,
+  CUSTOMER_TYPES,
+  INTERACTION_CHANNELS,
+  INTERACTION_DELIVERY_STATUSES,
+} from '@/api/customers';
 import { TICKET_CATEGORIES, TICKET_PRIORITIES, TICKET_STATUSES } from '@/api/tickets';
 
 type MessageTree = { [key: string]: string | MessageTree };
@@ -94,6 +99,13 @@ describe('i18n catalogues', () => {
     for (const direction of INTERACTION_DIRECTIONS) {
       expect(enFlat.has(`interaction.direction.${direction}`)).toBe(true);
       expect(arFlat.has(`interaction.direction.${direction}`)).toBe(true);
+    }
+  });
+
+  it('has an interaction.delivery key for every InteractionDeliveryStatus member', () => {
+    for (const status of INTERACTION_DELIVERY_STATUSES) {
+      expect(enFlat.has(`interaction.delivery.${status}`)).toBe(true);
+      expect(arFlat.has(`interaction.delivery.${status}`)).toBe(true);
     }
   });
 

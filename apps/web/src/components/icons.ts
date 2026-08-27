@@ -31,6 +31,11 @@ export const ICON_PATHS = {
   paperclip: 'M21 11l-9 9a5 5 0 0 1-7-7l9-9a3 3 0 0 1 4 4l-9 9a1 1 0 0 1-2-2l8-8',
   send: 'M22 2L11 13M22 2l-7 20-4-9-9-4z',
   'user-check': 'M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a6 6 0 0 1 12 0M17 11l2 2 4-4',
+  mail: 'M3 6h18v12H3zM3 6l9 7 9-7',
+  'message-circle': 'M21 11.5a8.5 8.5 0 0 1-12.2 7.7L3 21l1.9-5.6A8.5 8.5 0 1 1 21 11.5z',
+  smartphone: 'M7 3h10a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM10 18h4',
+  clipboard: 'M9 4h6v3H9zM7 6h2M15 6h2a1 1 0 0 1 1 1v13H6V7a1 1 0 0 1 1-1M9 12h6M9 16h4',
+  phone: 'M6 3h4l2 5-3 2a11 11 0 0 0 5 5l2-3 5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 5 4a1 1 0 0 1 1-1z',
 } as const;
 
 export type IconName = keyof typeof ICON_PATHS;

@@ -6,14 +6,19 @@ export type CustomerType = 'INDIVIDUAL' | 'COMPANY';
 export type InteractionChannel =
   | 'EMAIL' | 'WHATSAPP' | 'CHAT' | 'SMS' | 'WEB_FORM' | 'PHONE' | 'MEETING' | 'OTHER';
 export type InteractionDirection = 'INBOUND' | 'OUTBOUND';
+export type InteractionDeliveryStatus = 'LOGGED' | 'RECEIVED' | 'QUEUED' | 'SENT' | 'FAILED';
 
 /** The values, in display order, for every picker in this feature. Keep in step
  *  with the Prisma enums in apps/api/prisma/schema.prisma. */
 export const CUSTOMER_STATUSES: CustomerStatus[] = ['PROSPECT', 'ACTIVE', 'INACTIVE', 'ARCHIVED'];
 export const CUSTOMER_TYPES: CustomerType[] = ['INDIVIDUAL', 'COMPANY'];
-/** Matches CHANNEL_ORDER in apps/api/src/customers/channel.registry.ts. */
+/** Matches CHANNEL_ORDER in apps/api/src/communication/channel-registry.service.ts. */
 export const INTERACTION_CHANNELS: InteractionChannel[] = [
   'EMAIL', 'WHATSAPP', 'CHAT', 'SMS', 'WEB_FORM', 'PHONE', 'MEETING', 'OTHER',
+];
+/** Matches the InteractionDeliveryStatus enum in apps/api/prisma/schema.prisma. */
+export const INTERACTION_DELIVERY_STATUSES: InteractionDeliveryStatus[] = [
+  'LOGGED', 'RECEIVED', 'QUEUED', 'SENT', 'FAILED',
 ];
 
 /** Mirrors UserRefDto in apps/api/src/customers/dto/customer-response.dto.ts */
@@ -127,6 +132,14 @@ export interface InteractionTicketRef {
   subject: string;
 }
 
+/** Mirrors InteractionCustomerRefDto. Present on every interaction response so
+ *  the cross-customer timeline needs no second read. */
+export interface InteractionCustomerRef {
+  id: string;
+  name: string;
+  email: string | null;
+}
+
 /** Mirrors InteractionResponseDto. */
 export interface CustomerInteraction {
   id: string;
@@ -142,6 +155,16 @@ export interface CustomerInteraction {
   createdAt: string;
   ticketId: string | null;
   ticket: InteractionTicketRef | null;
+  customer: InteractionCustomerRef;
+  deliveryStatus: InteractionDeliveryStatus;
+  /** The counterparty address on this channel: a mailbox, an E.164 number, a
+   *  session id. Rendered dir="ltr" — it is always a Latin-script identifier. */
+  channelAddress: string | null;
+  externalId: string | null;
+  failureReason: string | null;
+  /** Groups rows into one conversation. Null for rows logged before the
+   *  delivery columns existed. */
+  threadKey: string | null;
 }
 
 /** Mirrors CreateInteractionDto. `ticketId` must belong to this customer — a
@@ -268,6 +291,7 @@ export async function deleteAttachment(customerId: string, id: string): Promise<
 export interface ListInteractionsParams {
   channel?: InteractionChannel;
   direction?: InteractionDirection;
+  deliveryStatus?: InteractionDeliveryStatus;
   ticketId?: string;
 }
 

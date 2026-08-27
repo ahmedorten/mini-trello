@@ -44,6 +44,12 @@ const routes: RouteRecordRaw[] = [
     meta: { titleKey: 'nav.customers', permissions: ['customers:read'] },
   },
   {
+    path: '/communication',
+    name: 'communication',
+    component: () => import('@/views/CommunicationView.vue'),
+    meta: { titleKey: 'nav.communication', permissions: ['customers:read'] },
+  },
+  {
     path: '/customers/new',
     name: 'customer-create',
     component: () => import('@/views/CustomerFormView.vue'),

@@ -21,6 +21,7 @@ const routes = [
   { path: '/tickets', name: 'tickets', component: { template: '<div>Tickets</div>' } },
   { path: '/workspace', name: 'workspace', component: { template: '<div>Workspace</div>' } },
   { path: '/tasks', name: 'tasks', component: { template: '<div>Tasks</div>' } },
+  { path: '/communication', name: 'communication', component: { template: '<div>Comms</div>' } },
   { path: '/login', name: 'login', component: { template: '<div>Login</div>' } },
 ];
 
@@ -185,6 +186,34 @@ describe('AppLayout', () => {
     const nav = wrapper.find('nav[aria-label="Main navigation"]');
     const links = nav.findAll('a');
     expect(links.map((link) => link.text())).not.toContain('Tasks');
+  });
+
+  it('renders the Communication link when signed in with customers:read', async () => {
+    mockAuthStore({ isAuthenticated: true, permissions: ['customers:read'] });
+    const { wrapper } = await mountLayout();
+
+    const nav = wrapper.find('nav[aria-label="Main navigation"]');
+    const links = nav.findAll('a');
+    expect(links.map((link) => link.text())).toContain('Communication');
+  });
+
+  it('omits the Communication link without customers:read', async () => {
+    mockAuthStore({ isAuthenticated: true, permissions: [] });
+    const { wrapper } = await mountLayout();
+
+    const nav = wrapper.find('nav[aria-label="Main navigation"]');
+    const links = nav.findAll('a');
+    expect(links.map((link) => link.text())).not.toContain('Communication');
+  });
+
+  it('puts Communication in the Work group, not Records', async () => {
+    mockAuthStore({ isAuthenticated: true, permissions: ['customers:read', 'tasks:read'] });
+    const { wrapper } = await mountLayout();
+
+    const groups = wrapper.findAll('.layout__nav-group');
+    const workGroup = groups.find((group) => group.find('h2').text() === 'Work')!;
+
+    expect(workGroup.findAll('a').map((link) => link.text())).toContain('Communication');
   });
 
   it('signs out via auth.logout and redirects to login', async () => {

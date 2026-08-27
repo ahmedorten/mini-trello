@@ -110,6 +110,14 @@ describe('router', () => {
     expect(router.resolve('/customers').name).toBe('customers');
   });
 
+  it('resolves /communication with its permission gate and title key', () => {
+    const resolved = router.resolve('/communication');
+
+    expect(resolved.name).toBe('communication');
+    expect(resolved.meta.permissions).toEqual(['customers:read']);
+    expect(resolved.meta.titleKey).toBe('nav.communication');
+  });
+
   it('resolves /customers/new to the customer-create route, not customer-detail', () => {
     expect(router.resolve('/customers/new').name).toBe('customer-create');
   });
@@ -139,6 +147,14 @@ describe('router', () => {
     mockAuth({ isAuthenticated: true, permissions: [] });
 
     await router.push('/customers');
+
+    expect(router.currentRoute.value.name).toBe('forbidden');
+  });
+
+  it('redirects /communication to forbidden without customers:read', async () => {
+    mockAuth({ isAuthenticated: true, permissions: [] });
+
+    await router.push('/communication');
 
     expect(router.currentRoute.value.name).toBe('forbidden');
   });

@@ -302,7 +302,11 @@ onUnmounted(() => {
       </div>
 
       <div v-else-if="activeTab === 'communication'" class="ticket-detail__panel">
-        <CommunicationTimeline :ticket-id="tickets.current.id" :customer-id="tickets.current.customer.id" />
+        <CommunicationTimeline
+          :ticket-id="tickets.current.id"
+          :customer-id="tickets.current.customer.id"
+          :customer-contact="{ email: tickets.current.customer.email, phone: null }"
+        />
       </div>
 
       <div v-else class="ticket-detail__panel">

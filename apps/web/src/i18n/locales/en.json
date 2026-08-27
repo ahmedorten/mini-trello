@@ -60,7 +60,8 @@
       "work": "Work",
       "records": "Records",
       "administration": "Administration"
-    }
+    },
+    "communication": "Communication"
   },
   "auth": {
     "signIn": "Sign in",
@@ -85,7 +86,8 @@
       "ticket": "Ticket",
       "editTicket": "Edit ticket",
       "notAllowed": "Not allowed",
-      "notFound": "Not found"
+      "notFound": "Not found",
+      "communication": "Communication"
     }
   },
   "customer": {
@@ -256,6 +258,13 @@
     "direction": {
       "INBOUND": "Inbound",
       "OUTBOUND": "Outbound"
+    },
+    "delivery": {
+      "LOGGED": "Logged",
+      "RECEIVED": "Received",
+      "QUEUED": "Queued",
+      "SENT": "Sent",
+      "FAILED": "Failed"
     }
   },
   "user": {
@@ -396,7 +405,23 @@
     "empty": "No communication logged yet.",
     "filterChannel": "Channel",
     "filterDirection": "Direction",
-    "systemAuthor": "Received automatically"
+    "systemAuthor": "Received automatically",
+    "filterDeliveryStatus": "Delivery",
+    "address": "Address",
+    "addressRequired": "This channel needs an address before it can send.",
+    "bodyCounter": "{count} / {limit}",
+    "earlierHistory": "Earlier history",
+    "failureReason": "Delivery failed: {reason}",
+    "messageCount": "{count} messages",
+    "inbox": {
+      "title": "Communication",
+      "selectPrompt": "Select a conversation to read it.",
+      "conversations": "Conversations",
+      "thread": "Thread",
+      "refresh": "Refresh",
+      "mine": "My customers",
+      "empty": "No conversations match these filters."
+    }
   },
   "task": {
     "title": "Title",

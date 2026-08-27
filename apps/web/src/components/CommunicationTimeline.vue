@@ -3,17 +3,23 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
-import { useDashboardStore } from '@/stores/dashboard';
+import { useCommunicationStore } from '@/stores/communication';
 import { createTicketInteraction, listTicketInteractions } from '@/api/tickets';
+import { listCommunicationTimeline, sendMessage } from '@/api/communication';
 import {
+  createInteraction,
   deleteInteraction,
+  listInteractions,
   INTERACTION_CHANNELS,
+  INTERACTION_DELIVERY_STATUSES,
   type CustomerInteraction,
   type InteractionChannel,
+  type InteractionDeliveryStatus,
   type InteractionDirection,
 } from '@/api/customers';
 import { toErrorMessage } from '@/api/client';
 import { toLocalDatetimeInput } from '@/utils/format';
+import { CHANNEL_ICONS, DELIVERY_TONES } from './channels';
 import AppStateBlock from './AppStateBlock.vue';
 import AppBadge from './AppBadge.vue';
 import AppIcon from './AppIcon.vue';
@@ -22,50 +28,97 @@ import QuickReplyPicker from './QuickReplyPicker.vue';
 
 const props = withDefaults(
   defineProps<{
-    ticketId: string;
-    customerId: string;
+    /** Ticket-scoped source. With customerId absent, the ticket supplies it. */
+    ticketId?: string;
+    /** Customer-scoped source when ticketId is absent; the compose target always. */
+    customerId?: string;
     readonly?: boolean;
     maxItems?: number;
+    /** Rows to render instead of loading any. The inbox owns its own paging. */
+    items?: CustomerInteraction[];
+    /** Pre-fills the composer's address field for email/phone channels. */
+    customerContact?: { email: string | null; phone: string | null };
   }>(),
-  { readonly: false, maxItems: undefined },
+  {
+    ticketId: undefined,
+    customerId: undefined,
+    readonly: false,
+    maxItems: undefined,
+    items: undefined,
+    customerContact: undefined,
+  },
 );
 
-const auth = useAuthStore();
-const dashboard = useDashboardStore();
-const { t, d } = useI18n();
+const emit = defineEmits<{ sent: [] }>();
 
-const interactions = ref<CustomerInteraction[]>([]);
+const auth = useAuthStore();
+const communication = useCommunicationStore();
+const { t, d, n } = useI18n();
+
+const loadedInteractions = ref<CustomerInteraction[]>([]);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 const includeCustomerHistory = ref(false);
 const channelFilter = ref<InteractionChannel | ''>('');
 const directionFilter = ref<InteractionDirection | ''>('');
+const deliveryStatusFilter = ref<InteractionDeliveryStatus | ''>('');
+
+/** Supplied rows win; otherwise whatever load() fetched. */
+const interactions = computed(() => props.items ?? loadedInteractions.value);
+
+/** The toolbar's own filters belong to the two self-loading sources. The inbox
+ *  supplies `items` and owns its filters, so they are hidden there. */
+const showToolbarFilters = computed(() => props.items === undefined);
+
+/** includeCustomerHistory is ticket-only: the concept does not exist for the
+ *  other two sources. */
+const showHistoryToggle = computed(() => props.ticketId !== undefined);
+
+function filterParams() {
+  return {
+    channel: channelFilter.value || undefined,
+    direction: directionFilter.value || undefined,
+    deliveryStatus: deliveryStatusFilter.value || undefined,
+  };
+}
 
 let latestRequestId = 0;
 
 async function load(): Promise<void> {
+  if (props.items !== undefined) {
+    return;
+  }
+
   const requestId = ++latestRequestId;
   isLoading.value = true;
   error.value = null;
 
   try {
-    const result = await listTicketInteractions(props.ticketId, {
-      channel: channelFilter.value || undefined,
-      direction: directionFilter.value || undefined,
-      includeCustomerHistory: includeCustomerHistory.value,
-    });
+    const result = props.ticketId
+      ? await listTicketInteractions(props.ticketId, {
+          ...filterParams(),
+          includeCustomerHistory: includeCustomerHistory.value,
+        })
+      : props.customerId
+        ? await listInteractions(props.customerId, filterParams())
+        : (
+            await listCommunicationTimeline({
+              ...filterParams(),
+              pageSize: props.maxItems ?? 20,
+            })
+          ).items;
 
     if (requestId !== latestRequestId) {
       return;
     }
 
-    interactions.value = result;
+    loadedInteractions.value = result;
   } catch (caught) {
     if (requestId !== latestRequestId) {
       return;
     }
 
-    interactions.value = [];
+    loadedInteractions.value = [];
     error.value = toErrorMessage(caught);
   } finally {
     if (requestId === latestRequestId) {
@@ -75,20 +128,36 @@ async function load(): Promise<void> {
 }
 
 watch(() => props.ticketId, load);
-watch([includeCustomerHistory, channelFilter, directionFilter], load);
+watch(() => props.customerId, load);
+watch(() => props.items, load);
+watch([includeCustomerHistory, channelFilter, directionFilter, deliveryStatusFilter], load);
 
 onMounted(() => {
+  if (import.meta.env.DEV && !props.ticketId && !props.customerId && !props.items) {
+    // A silently empty (or unfiltered global) timeline is this component's
+    // failure mode. Warn rather than throw: a prop mistake should not take the
+    // whole screen down.
+    console.warn(
+      'CommunicationTimeline: mounted with no ticketId, customerId, or items — ' +
+        'it will render an unscoped global feed.',
+    );
+  }
+
   void load();
-  void dashboard.loadChannels();
+  void communication.loadChannels();
 });
 
 const visibleInteractions = computed(() =>
   props.maxItems ? interactions.value.slice(0, props.maxItems) : interactions.value,
 );
 
-const respondableChannels = computed(() => dashboard.channels.filter((channel) => channel.canRespond));
+const respondableChannels = computed(() => communication.respondableChannels);
 
 const showComposer = computed(() => !props.readonly && auth.can('interactions:write'));
+
+/** The customer-scoped list is the one place an entry's customer is not implied
+ *  by context, so it names it. */
+const showCustomerLink = computed(() => props.items === undefined && !props.ticketId);
 
 // --- composer ----------------------------------------------------------------
 
@@ -98,8 +167,40 @@ const composerForm = reactive({
   channel: '' as InteractionChannel | '',
   subject: '',
   body: '',
+  address: '',
   occurredAt: toLocalDatetimeInput(new Date()),
 });
+
+const selectedDescriptor = computed(() =>
+  composerForm.channel ? communication.channelDescriptor(composerForm.channel) : undefined,
+);
+
+const needsAddress = computed(() => selectedDescriptor.value?.requiresAddress ?? false);
+const showSubject = computed(() => selectedDescriptor.value?.supportsSubject ?? true);
+/** Falls back to the DTO's global cap so the counter always has a denominator. */
+const bodyLimit = computed(() => selectedDescriptor.value?.maxBodyLength ?? 8000);
+const canSendThroughChannel = computed(
+  () => auth.can('communication:send') && !!props.customerId,
+);
+const addressMissing = computed(
+  () => needsAddress.value && composerForm.address.trim().length === 0,
+);
+
+/** Pre-fill from the customer record; the field stays editable. */
+watch(
+  () => composerForm.channel,
+  () => {
+    const kind = selectedDescriptor.value?.addressKind;
+
+    if (kind === 'email') {
+      composerForm.address = props.customerContact?.email ?? '';
+    } else if (kind === 'phone') {
+      composerForm.address = props.customerContact?.phone ?? '';
+    } else {
+      composerForm.address = '';
+    }
+  },
+);
 
 watch(respondableChannels, (channels) => {
   if (!composerForm.channel && channels.length > 0) {
@@ -122,7 +223,7 @@ function closeComposer(): void {
 const isSubmitting = ref(false);
 
 async function submitComposer(): Promise<void> {
-  if (!composerForm.channel) {
+  if (!composerForm.channel || addressMissing.value) {
     return;
   }
 
@@ -135,19 +236,40 @@ async function submitComposer(): Promise<void> {
     // check.
     const occurredAtIso = new Date(composerForm.occurredAt).toISOString();
 
-    await createTicketInteraction(props.ticketId, {
+    // The payload the two fallback routes take: exactly what the log routes
+    // took before dispatch existed, `direction` included.
+    const logged = {
       channel: composerForm.channel,
-      direction: 'OUTBOUND',
+      direction: 'OUTBOUND' as InteractionDirection,
       subject: composerForm.subject,
       body: composerForm.body || undefined,
       occurredAt: occurredAtIso,
-    });
+    };
+
+    if (canSendThroughChannel.value) {
+      await sendMessage({
+        customerId: props.customerId!,
+        ticketId: props.ticketId,
+        channel: composerForm.channel,
+        subject: showSubject.value ? composerForm.subject : undefined,
+        body: composerForm.body,
+        address: needsAddress.value ? composerForm.address.trim() : undefined,
+        occurredAt: occurredAtIso,
+      });
+    } else if (props.ticketId) {
+      // A caller who can log but not send keeps the previous behaviour exactly,
+      // payload included.
+      await createTicketInteraction(props.ticketId, logged);
+    } else if (props.customerId) {
+      await createInteraction(props.customerId, logged);
+    }
 
     composerForm.subject = '';
     composerForm.body = '';
     composerForm.occurredAt = toLocalDatetimeInput(new Date());
     composerOpen.value = false;
     await load();
+    emit('sent');
   } catch (caught) {
     error.value = toErrorMessage(caught);
   } finally {
@@ -172,6 +294,7 @@ async function remove(interaction: CustomerInteraction): Promise<void> {
   try {
     await deleteInteraction(interaction.customerId, interaction.id);
     await load();
+    emit('sent');
   } catch (caught) {
     error.value = toErrorMessage(caught);
   }
@@ -184,30 +307,42 @@ function isOtherTicket(interaction: CustomerInteraction): boolean {
 
 <template>
   <div class="communication-timeline">
-    <div class="communication-timeline__toolbar">
-      <label class="communication-timeline__toggle">
+    <div v-if="showToolbarFilters || showComposer" class="communication-timeline__toolbar">
+      <label v-if="showHistoryToggle" class="communication-timeline__toggle">
         <input v-model="includeCustomerHistory" type="checkbox">
         {{ t('communication.includeCustomerHistory') }}
       </label>
 
-      <label>
-        {{ t('communication.filterChannel') }}
-        <select v-model="channelFilter">
-          <option value="">{{ t('common.all') }}</option>
-          <option v-for="channel in INTERACTION_CHANNELS" :key="channel" :value="channel">
-            {{ t(`interaction.channel.${channel}`) }}
-          </option>
-        </select>
-      </label>
+      <template v-if="showToolbarFilters">
+        <label>
+          {{ t('communication.filterChannel') }}
+          <select v-model="channelFilter">
+            <option value="">{{ t('common.all') }}</option>
+            <option v-for="channel in INTERACTION_CHANNELS" :key="channel" :value="channel">
+              {{ t(`interaction.channel.${channel}`) }}
+            </option>
+          </select>
+        </label>
 
-      <label>
-        {{ t('communication.filterDirection') }}
-        <select v-model="directionFilter">
-          <option value="">{{ t('common.all') }}</option>
-          <option value="INBOUND">{{ t('interaction.direction.INBOUND') }}</option>
-          <option value="OUTBOUND">{{ t('interaction.direction.OUTBOUND') }}</option>
-        </select>
-      </label>
+        <label>
+          {{ t('communication.filterDirection') }}
+          <select v-model="directionFilter">
+            <option value="">{{ t('common.all') }}</option>
+            <option value="INBOUND">{{ t('interaction.direction.INBOUND') }}</option>
+            <option value="OUTBOUND">{{ t('interaction.direction.OUTBOUND') }}</option>
+          </select>
+        </label>
+
+        <label>
+          {{ t('communication.filterDeliveryStatus') }}
+          <select v-model="deliveryStatusFilter">
+            <option value="">{{ t('common.all') }}</option>
+            <option v-for="status in INTERACTION_DELIVERY_STATUSES" :key="status" :value="status">
+              {{ t(`interaction.delivery.${status}`) }}
+            </option>
+          </select>
+        </label>
+      </template>
 
       <AppButton v-if="showComposer && !composerOpen" variant="primary" size="sm" icon="send" @click="openComposer">
         {{ t('communication.respond') }}
@@ -230,15 +365,30 @@ function isOtherTicket(interaction: CustomerInteraction): boolean {
         {{ t('customer.detail.direction') }}: {{ t('interaction.direction.OUTBOUND') }}
       </p>
 
-      <label>
+      <label v-if="needsAddress">
+        {{ t('communication.address') }}
+        <input v-model="composerForm.address" type="text" dir="ltr" maxlength="320">
+      </label>
+
+      <AppStateBlock
+        v-if="addressMissing"
+        variant="warning"
+        :message="t('communication.addressRequired')"
+      />
+
+      <label v-if="showSubject">
         {{ t('ticket.field.subject') }}
         <input v-model="composerForm.subject" type="text" required minlength="2">
       </label>
 
       <label>
         {{ t('ticket.field.description') }}
-        <textarea v-model="composerForm.body" rows="3" />
+        <textarea v-model="composerForm.body" rows="3" :maxlength="bodyLimit" />
       </label>
+
+      <p class="communication-timeline__counter">
+        {{ t('communication.bodyCounter', { count: n(composerForm.body.length), limit: n(bodyLimit) }) }}
+      </p>
 
       <QuickReplyPicker v-model="composerForm.body" :channel="composerForm.channel || undefined" mode="insert" />
 
@@ -248,7 +398,13 @@ function isOtherTicket(interaction: CustomerInteraction): boolean {
       </label>
 
       <div class="communication-timeline__composer-actions">
-        <AppButton type="submit" variant="primary" size="sm" :loading="isSubmitting">
+        <AppButton
+          type="submit"
+          variant="primary"
+          size="sm"
+          :loading="isSubmitting"
+          :disabled="addressMissing"
+        >
           {{ t('communication.send') }}
         </AppButton>
         <AppButton type="button" variant="ghost" size="sm" @click="closeComposer">{{ t('common.cancel') }}</AppButton>
@@ -270,10 +426,13 @@ function isOtherTicket(interaction: CustomerInteraction): boolean {
       >
         <div class="communication-timeline__badges">
           <AppBadge tone="info">
-            <AppIcon name="communication" :size="14" />
+            <AppIcon :name="CHANNEL_ICONS[interaction.channel]" :size="14" />
             {{ t(`interaction.channel.${interaction.channel}`) }}
           </AppBadge>
           <AppBadge tone="neutral">{{ t(`interaction.direction.${interaction.direction}`) }}</AppBadge>
+          <AppBadge :tone="DELIVERY_TONES[interaction.deliveryStatus]">
+            {{ t(`interaction.delivery.${interaction.deliveryStatus}`) }}
+          </AppBadge>
           <RouterLink v-if="isOtherTicket(interaction)" :to="`/tickets/${interaction.ticket!.id}`">
             {{ t('communication.otherTicket', { subject: interaction.ticket!.subject }) }}
           </RouterLink>
@@ -282,7 +441,19 @@ function isOtherTicket(interaction: CustomerInteraction): boolean {
         <p class="communication-timeline__subject">{{ interaction.subject }}</p>
         <p v-if="interaction.body" class="communication-timeline__body">{{ interaction.body }}</p>
 
+        <p v-if="interaction.channelAddress" class="communication-timeline__address" dir="ltr">
+          {{ interaction.channelAddress }}
+        </p>
+
+        <p v-if="interaction.failureReason" class="communication-timeline__failure">
+          {{ t('communication.failureReason', { reason: interaction.failureReason }) }}
+        </p>
+
         <p class="communication-timeline__meta">
+          <RouterLink v-if="showCustomerLink" :to="`/customers/${interaction.customerId}`">
+            {{ interaction.customer.name }}
+          </RouterLink>
+          <template v-if="showCustomerLink"> — </template>
           {{ d(new Date(interaction.occurredAt), 'long') }} —
           {{ t('customer.detail.loggedBy', { name: interaction.createdBy?.fullName ?? t('communication.systemAuthor') }) }}
         </p>
@@ -293,7 +464,7 @@ function isOtherTicket(interaction: CustomerInteraction): boolean {
       </li>
     </ul>
 
-    <p v-if="maxItems && interactions.length > maxItems" class="communication-timeline__footer">
+    <p v-if="maxItems && interactions.length > maxItems && customerId" class="communication-timeline__footer">
       {{ t('common.showingOfTotal', { shown: maxItems, total: interactions.length }) }}
       —
       <RouterLink :to="`/customers/${customerId}`">{{ t('customerSummary.viewProfile') }}</RouterLink>
@@ -336,7 +507,8 @@ function isOtherTicket(interaction: CustomerInteraction): boolean {
   gap: var(--space-2);
 }
 
-.communication-timeline__direction {
+.communication-timeline__direction,
+.communication-timeline__counter {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   margin: 0;
@@ -367,6 +539,7 @@ function isOtherTicket(interaction: CustomerInteraction): boolean {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  flex-wrap: wrap;
   margin-block-end: var(--space-2);
 }
 
@@ -377,6 +550,18 @@ function isOtherTicket(interaction: CustomerInteraction): boolean {
 
 .communication-timeline__body {
   white-space: pre-wrap;
+  margin: 0 0 var(--space-2);
+}
+
+.communication-timeline__address {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  margin: 0 0 var(--space-1);
+}
+
+.communication-timeline__failure {
+  color: var(--color-error);
+  font-size: var(--font-size-xs);
   margin: 0 0 var(--space-2);
 }
 

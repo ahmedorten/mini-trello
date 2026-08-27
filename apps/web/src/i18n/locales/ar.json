@@ -60,7 +60,8 @@
       "work": "العمل",
       "records": "السجلات",
       "administration": "الإدارة"
-    }
+    },
+    "communication": "التواصل"
   },
   "auth": {
     "signIn": "تسجيل الدخول",
@@ -85,7 +86,8 @@
       "ticket": "التذكرة",
       "editTicket": "تعديل التذكرة",
       "notAllowed": "غير مسموح",
-      "notFound": "غير موجود"
+      "notFound": "غير موجود",
+      "communication": "التواصل"
     }
   },
   "customer": {
@@ -256,6 +258,13 @@
     "direction": {
       "INBOUND": "وارد",
       "OUTBOUND": "صادر"
+    },
+    "delivery": {
+      "LOGGED": "مُسجَّل",
+      "RECEIVED": "وارد",
+      "QUEUED": "في الانتظار",
+      "SENT": "مُرسل",
+      "FAILED": "فشل"
     }
   },
   "user": {
@@ -396,7 +405,23 @@
     "empty": "لا يوجد تواصل مسجل بعد.",
     "filterChannel": "القناة",
     "filterDirection": "الاتجاه",
-    "systemAuthor": "وارد تلقائيًا"
+    "systemAuthor": "وارد تلقائيًا",
+    "filterDeliveryStatus": "حالة التسليم",
+    "address": "العنوان",
+    "addressRequired": "تحتاج هذه القناة إلى عنوان قبل الإرسال.",
+    "bodyCounter": "{count} / {limit}",
+    "earlierHistory": "سجل سابق",
+    "failureReason": "فشل التسليم: {reason}",
+    "messageCount": "{count} رسالة",
+    "inbox": {
+      "title": "التواصل",
+      "selectPrompt": "اختر محادثة لقراءتها.",
+      "conversations": "المحادثات",
+      "thread": "المحادثة",
+      "refresh": "تحديث",
+      "mine": "عملائي",
+      "empty": "لا توجد محادثات تطابق عوامل التصفية هذه."
+    }
   },
   "task": {
     "title": "العنوان",

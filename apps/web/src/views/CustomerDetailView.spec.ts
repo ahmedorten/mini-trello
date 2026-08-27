@@ -6,10 +6,20 @@ import { createPinia } from 'pinia';
 import CustomerDetailView from './CustomerDetailView.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useCustomersStore } from '@/stores/customers';
-import type { Customer, CustomerNote, CreateInteractionPayload } from '@/api/customers';
+import type { Customer, CustomerNote } from '@/api/customers';
 
 vi.mock('@/stores/auth', () => ({ useAuthStore: vi.fn() }));
 vi.mock('@/stores/customers', () => ({ useCustomersStore: vi.fn() }));
+
+// The interactions tab now mounts the shared timeline, which fetches its own
+// rows. Stubbing the component keeps this spec about the view.
+vi.mock('@/components/CommunicationTimeline.vue', () => ({
+  default: {
+    name: 'CommunicationTimeline',
+    props: ['ticketId', 'customerId', 'readonly', 'maxItems', 'items', 'customerContact'],
+    template: '<div class="communication-timeline-stub" />',
+  },
+}));
 
 const mockedUseAuthStore = vi.mocked(useAuthStore);
 const mockedUseCustomersStore = vi.mocked(useCustomersStore);
@@ -50,14 +60,12 @@ function mockCustomers(overrides: {
   current?: Customer | null;
   notes?: CustomerNote[];
   attachments?: unknown[];
-  interactions?: unknown[];
   error?: string | null;
 } = {}) {
   const store = reactive({
     current: 'current' in overrides ? overrides.current : sampleCustomer,
     notes: overrides.notes ?? [],
     attachments: overrides.attachments ?? [],
-    interactions: overrides.interactions ?? [],
     error: overrides.error ?? null,
     loadDetail: vi.fn(async () => {}),
     clearDetail: vi.fn(),
@@ -68,8 +76,6 @@ function mockCustomers(overrides: {
     uploadFile: vi.fn(async () => true),
     downloadFile: vi.fn(async () => true),
     removeAttachment: vi.fn(async () => true),
-    addInteraction: vi.fn<[string, CreateInteractionPayload], Promise<boolean>>(async () => true),
-    removeInteraction: vi.fn(async () => true),
   });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -224,22 +230,35 @@ describe('CustomerDetailView', () => {
     expect(buttons).toEqual(['Download']);
   });
 
-  it('converts a datetime-local value to an ISO string before calling addInteraction', async () => {
+  it('renders the shared CommunicationTimeline with the customer and its contact details', async () => {
     mockAuth(['customers:read', 'interactions:write']);
-    const store = mockCustomers();
+    mockCustomers();
     const wrapper = await mountView();
 
     const tabs = wrapper.findAll('[role="tab"]');
     await tabs[2].trigger('click');
 
-    await wrapper.find('input[type="text"]').setValue('Follow-up call');
-    await wrapper.find('input[type="datetime-local"]').setValue('2026-08-20T10:30');
-    await wrapper.find('.customer-detail__interaction-form').trigger('submit.prevent');
-    await wrapper.vm.$nextTick();
+    const timeline = wrapper.findComponent({ name: 'CommunicationTimeline' });
 
-    expect(store.addInteraction).toHaveBeenCalledTimes(1);
-    const [, payload] = store.addInteraction.mock.calls[0];
-    expect(payload.occurredAt).toMatch(/\d{4}-\d{2}-\d{2}T.*Z$/);
+    expect(timeline.exists()).toBe(true);
+    expect(timeline.props('customerId')).toBe('c-1');
+    expect(timeline.props('customerContact')).toEqual({
+      email: 'contact@orten.example',
+      phone: '+20 100 000 0000',
+    });
+    // There is no second, hand-rolled list any more.
+    expect(wrapper.find('.customer-detail__interaction-form').exists()).toBe(false);
+  });
+
+  it('keeps the ticketing note beside the timeline', async () => {
+    mockAuth(['customers:read']);
+    mockCustomers();
+    const wrapper = await mountView();
+
+    const tabs = wrapper.findAll('[role="tab"]');
+    await tabs[2].trigger('click');
+
+    expect(wrapper.find('.customers__muted').exists()).toBe(true);
   });
 
   it('omits ARCHIVED from the status select without customers:archive and includes it with', async () => {

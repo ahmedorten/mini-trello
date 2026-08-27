@@ -1,23 +1,20 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useCustomersStore } from '@/stores/customers';
 import {
   CUSTOMER_STATUSES,
-  INTERACTION_CHANNELS,
   type CustomerAttachment,
-  type CustomerInteraction,
   type CustomerNote,
   type CustomerStatus,
-  type InteractionChannel,
-  type InteractionDirection,
 } from '@/api/customers';
-import { formatBytes, toLocalDatetimeInput } from '@/utils/format';
+import { formatBytes } from '@/utils/format';
 import AppStateBlock from '@/components/AppStateBlock.vue';
 import AppBadge from '@/components/AppBadge.vue';
 import AppTabs from '@/components/AppTabs.vue';
+import CommunicationTimeline from '@/components/CommunicationTimeline.vue';
 import type { AppTab } from '@/components/tabs';
 
 const route = useRoute();
@@ -142,42 +139,6 @@ function attachmentSize(bytes: number): string {
   const { value, unitKey } = formatBytes(bytes);
 
   return `${n(value, 'decimal')} ${t(`common.bytes.${unitKey}`)}`;
-}
-
-// --- interactions ------------------------------------------------------------
-
-const interactionForm = reactive({
-  channel: 'PHONE' as InteractionChannel,
-  direction: 'OUTBOUND' as InteractionDirection,
-  subject: '',
-  body: '',
-  occurredAt: toLocalDatetimeInput(new Date()),
-});
-
-async function submitInteraction(): Promise<void> {
-  // datetime-local yields a local, zoneless string; the API needs a real ISO
-  // instant, or an agent east of UTC could trip the future-timestamp check.
-  const occurredAtIso = new Date(interactionForm.occurredAt).toISOString();
-
-  const ok = await customers.addInteraction(customerId.value, {
-    channel: interactionForm.channel,
-    direction: interactionForm.direction,
-    subject: interactionForm.subject,
-    body: interactionForm.body || undefined,
-    occurredAt: occurredAtIso,
-  });
-
-  if (ok) {
-    interactionForm.subject = '';
-    interactionForm.body = '';
-    interactionForm.occurredAt = toLocalDatetimeInput(new Date());
-  }
-}
-
-async function removeInteraction(interaction: CustomerInteraction): Promise<void> {
-  if (window.confirm(t('customer.detail.deleteInteractionConfirm'))) {
-    await customers.removeInteraction(customerId.value, interaction.id);
-  }
 }
 
 onMounted(() => {
@@ -337,68 +298,13 @@ onUnmounted(() => {
       </div>
 
       <div v-else class="customer-detail__panel">
-        <form
-          v-if="auth.can('interactions:write')"
-          class="customer-detail__interaction-form"
-          @submit.prevent="submitInteraction"
-        >
-          <label>
-            {{ t('customer.detail.channel') }}
-            <select v-model="interactionForm.channel">
-              <option v-for="channel in INTERACTION_CHANNELS" :key="channel" :value="channel">
-                {{ t(`interaction.channel.${channel}`) }}
-              </option>
-            </select>
-          </label>
-          <label>
-            {{ t('customer.detail.direction') }}
-            <select v-model="interactionForm.direction">
-              <option value="INBOUND">{{ t('interaction.direction.INBOUND') }}</option>
-              <option value="OUTBOUND">{{ t('interaction.direction.OUTBOUND') }}</option>
-            </select>
-          </label>
-          <label>
-            {{ t('ticket.field.subject') }}
-            <input v-model="interactionForm.subject" type="text" required minlength="2">
-          </label>
-          <label>
-            {{ t('ticket.field.description') }}
-            <textarea v-model="interactionForm.body" rows="3" />
-          </label>
-          <label>
-            {{ t('customer.detail.occurredAt') }}
-            <input v-model="interactionForm.occurredAt" type="datetime-local" required>
-          </label>
-          <button type="submit">{{ t('customer.detail.logInteraction') }}</button>
-        </form>
-
-        <p v-if="!customers.interactions.length">{{ t('customer.detail.noInteractions') }}</p>
-
-        <ul v-else class="customer-detail__interaction-list">
-          <li
-            v-for="interaction in customers.interactions"
-            :key="interaction.id"
-            class="customer-detail__interaction"
-          >
-            <p class="customer-detail__interaction-meta">
-              {{ t(`interaction.channel.${interaction.channel}`) }} ·
-              {{ t(`interaction.direction.${interaction.direction}`) }} —
-              {{ d(new Date(interaction.occurredAt), 'long') }}
-            </p>
-            <p class="customer-detail__interaction-subject">{{ interaction.subject }}</p>
-            <p v-if="interaction.body">{{ interaction.body }}</p>
-            <p class="customer-detail__interaction-meta">
-              {{ t('customer.detail.loggedBy', { name: interaction.createdBy?.fullName ?? t('communication.systemAuthor') }) }}
-            </p>
-            <button
-              v-if="auth.can('interactions:write')"
-              type="button"
-              @click="removeInteraction(interaction)"
-            >
-              {{ t('common.delete') }}
-            </button>
-          </li>
-        </ul>
+        <CommunicationTimeline
+          :customer-id="customerId"
+          :customer-contact="{
+            email: customers.current?.email ?? null,
+            phone: customers.current?.phone ?? null,
+          }"
+        />
 
         <p class="customers__muted">
           {{ t('customer.detail.ticketingNote') }}
@@ -457,8 +363,7 @@ onUnmounted(() => {
   padding: var(--space-5);
 }
 
-.customer-detail__note-form,
-.customer-detail__interaction-form {
+.customer-detail__note-form {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -466,8 +371,7 @@ onUnmounted(() => {
 }
 
 .customer-detail__note-list,
-.customer-detail__attachment-list,
-.customer-detail__interaction-list {
+.customer-detail__attachment-list {
   list-style: none;
   padding: 0;
   display: flex;
@@ -475,15 +379,13 @@ onUnmounted(() => {
   gap: var(--space-4);
 }
 
-.customer-detail__note,
-.customer-detail__interaction {
+.customer-detail__note {
   padding: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
 }
 
-.customer-detail__note-meta,
-.customer-detail__interaction-meta {
+.customer-detail__note-meta {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   margin: 0 0 var(--space-1);

@@ -2,16 +2,13 @@ import { defineStore } from 'pinia';
 import { reactive, ref } from 'vue';
 import {
   createCustomer,
-  createInteraction,
   createNote,
   deleteAttachment,
-  deleteInteraction,
   deleteNote,
   downloadAttachment as downloadAttachmentRequest,
   getCustomer,
   listAttachments,
   listCustomers,
-  listInteractions,
   listNotes,
   setCustomerStatus,
   updateCustomer,
@@ -19,12 +16,10 @@ import {
   uploadAttachment as uploadAttachmentRequest,
   type Customer,
   type CustomerAttachment,
-  type CustomerInteraction,
   type CustomerNote,
   type CustomerStatus,
   type CustomerType,
   type CreateCustomerPayload,
-  type CreateInteractionPayload,
   type ListCustomersParams,
   type NotePayload,
   type UpdateCustomerPayload,
@@ -38,7 +33,6 @@ export const useCustomersStore = defineStore('customers', () => {
   const current = ref<Customer | null>(null);
   const notes = ref<CustomerNote[]>([]);
   const attachments = ref<CustomerAttachment[]>([]);
-  const interactions = ref<CustomerInteraction[]>([]);
   const agents = ref<UserSummary[]>([]);
   const isLoading = ref(false);
   const isSaving = ref(false);
@@ -108,11 +102,10 @@ export const useCustomersStore = defineStore('customers', () => {
     error.value = null;
 
     try {
-      const [customer, noteList, attachmentList, interactionList] = await Promise.all([
+      const [customer, noteList, attachmentList] = await Promise.all([
         getCustomer(id),
         listNotes(id),
         listAttachments(id),
-        listInteractions(id),
       ]);
 
       if (requestId !== latestDetailRequestId) {
@@ -122,7 +115,6 @@ export const useCustomersStore = defineStore('customers', () => {
       current.value = customer;
       notes.value = noteList;
       attachments.value = attachmentList;
-      interactions.value = interactionList;
     } catch (caught) {
       if (requestId !== latestDetailRequestId) {
         return;
@@ -298,39 +290,10 @@ export const useCustomersStore = defineStore('customers', () => {
     }
   }
 
-  async function addInteraction(customerId: string, payload: CreateInteractionPayload): Promise<boolean> {
-    try {
-      await createInteraction(customerId, payload);
-      interactions.value = await listInteractions(customerId);
-      current.value = await getCustomer(customerId);
-
-      return true;
-    } catch (caught) {
-      error.value = toErrorMessage(caught);
-
-      return false;
-    }
-  }
-
-  async function removeInteraction(customerId: string, id: string): Promise<boolean> {
-    try {
-      await deleteInteraction(customerId, id);
-      interactions.value = await listInteractions(customerId);
-      current.value = await getCustomer(customerId);
-
-      return true;
-    } catch (caught) {
-      error.value = toErrorMessage(caught);
-
-      return false;
-    }
-  }
-
   function clearDetail(): void {
     current.value = null;
     notes.value = [];
     attachments.value = [];
-    interactions.value = [];
     error.value = null;
   }
 
@@ -340,7 +303,6 @@ export const useCustomersStore = defineStore('customers', () => {
     current,
     notes,
     attachments,
-    interactions,
     agents,
     isLoading,
     isSaving,
@@ -362,8 +324,6 @@ export const useCustomersStore = defineStore('customers', () => {
     uploadFile,
     downloadFile,
     removeAttachment,
-    addInteraction,
-    removeInteraction,
     clearDetail,
   };
 });
