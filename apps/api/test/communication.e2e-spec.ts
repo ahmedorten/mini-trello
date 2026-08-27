@@ -117,6 +117,48 @@ describe('Communication channels (e2e)', () => {
     ).toBe(true);
   });
 
+  it('every item carries the five fields Story 22 added', async () => {
+    const res = await request(server())
+      .get('/api/communication/channels')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+
+    for (const item of res.body.items) {
+      expect(item).toEqual(
+        expect.objectContaining({
+          acceptsInbound: expect.any(Boolean),
+          addressKind: expect.stringMatching(/^(email|phone|session|none)$/),
+          requiresAddress: expect.any(Boolean),
+          supportsSubject: expect.any(Boolean),
+        }),
+      );
+      expect(
+        item.maxBodyLength === null || typeof item.maxBodyLength === 'number',
+      ).toBe(true);
+    }
+  });
+
+  it('WEB_FORM is a one-way intake, SMS is a 1600-character phone channel, PHONE has no address', async () => {
+    const res = await request(server())
+      .get('/api/communication/channels')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+
+    const byKey = new Map(
+      res.body.items.map((item: { key: string }) => [item.key, item] as const),
+    );
+
+    expect(byKey.get('WEB_FORM')).toEqual(
+      expect.objectContaining({ canRespond: false, acceptsInbound: true }),
+    );
+    expect(byKey.get('SMS')).toEqual(
+      expect.objectContaining({ maxBodyLength: 1600, addressKind: 'phone' }),
+    );
+    expect(byKey.get('PHONE')).toEqual(
+      expect.objectContaining({ addressKind: 'none', acceptsInbound: false }),
+    );
+  });
+
   it('a customer-role account → 403', async () => {
     const customerUser = await createUser(adminToken, { roleKeys: ['customer'] }).expect(201);
     const customerToken = await login(customerUser.body.email, FIXTURE_PASSWORD);

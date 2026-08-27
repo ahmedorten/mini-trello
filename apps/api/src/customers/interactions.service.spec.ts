@@ -1,6 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
-import { CustomerStatus, InteractionChannel, InteractionDirection } from '@prisma/client';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  CustomerStatus,
+  InteractionChannel,
+  InteractionDeliveryStatus,
+  InteractionDirection,
+} from '@prisma/client';
 import { InteractionsService } from './interactions.service';
 import { CustomersService } from './customers.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -23,6 +28,12 @@ const baseInteractionRow = {
   createdBy: { id: 'author-1', fullName: 'Nour Hassan', email: 'nour@crm.local' },
   ticketId: null as string | null,
   ticket: null as { id: string; subject: string } | null,
+  customer: { id: 'customer-1', name: 'Layla Ibrahim', email: 'layla@crm.local' },
+  deliveryStatus: InteractionDeliveryStatus.LOGGED,
+  channelAddress: null as string | null,
+  externalId: null as string | null,
+  failureReason: null as string | null,
+  threadKey: null as string | null,
 };
 
 function buildCaller(overrides: Partial<AuthenticatedUser> = {}): AuthenticatedUser {
@@ -167,6 +178,108 @@ describe('InteractionsService', () => {
         expect(prisma.ticket.findUnique).not.toHaveBeenCalled();
       });
     });
+
+    describe('delivery', () => {
+      const occurredAt = new Date('2026-06-15T11:00:00.000Z').toISOString();
+
+      it('with no delivery argument writes LOGGED, a null address, and no metadata payload', async () => {
+        await service.create('customer-1', { ...dto, occurredAt }, buildCaller());
+
+        expect(prisma.customerInteraction.create).toHaveBeenCalledWith(
+          containing({
+            data: containing({
+              deliveryStatus: InteractionDeliveryStatus.LOGGED,
+              channelAddress: null,
+              externalId: null,
+              failureReason: null,
+              threadKey: null,
+            }),
+          }),
+        );
+      });
+
+      it('writes a supplied delivery argument through', async () => {
+        await service.create('customer-1', { ...dto, occurredAt }, buildCaller(), {
+          deliveryStatus: InteractionDeliveryStatus.RECEIVED,
+          channelAddress: 'nour@x.com',
+          externalId: 'provider-1',
+          failureReason: null,
+          threadKey: 'EMAIL:nour@x.com',
+        });
+
+        expect(prisma.customerInteraction.create).toHaveBeenCalledWith(
+          containing({
+            data: containing({
+              deliveryStatus: InteractionDeliveryStatus.RECEIVED,
+              channelAddress: 'nour@x.com',
+              externalId: 'provider-1',
+              threadKey: 'EMAIL:nour@x.com',
+            }),
+          }),
+        );
+      });
+
+      it('writes createdById null for a null caller — an ingested message has no author', async () => {
+        await service.create('customer-1', { ...dto, occurredAt }, null);
+
+        expect(prisma.customerInteraction.create).toHaveBeenCalledWith(
+          containing({ data: containing({ createdById: null }) }),
+        );
+      });
+
+      it('still rejects a future occurredAt on the authorless path', async () => {
+        await expect(
+          service.create(
+            'customer-1',
+            { ...dto, occurredAt: new Date('2026-06-15T13:00:00.000Z').toISOString() },
+            null,
+          ),
+        ).rejects.toBeInstanceOf(BadRequestException);
+      });
+    });
+  });
+
+  describe('remove', () => {
+    it(`a null-author row is nobody's row: ForbiddenException without customers:archive`, async () => {
+      prisma.customerInteraction.findFirst.mockResolvedValue({
+        id: 'interaction-1',
+        createdById: null,
+      });
+
+      await expect(
+        service.remove('customer-1', 'interaction-1', buildCaller()),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.customerInteraction.delete).not.toHaveBeenCalled();
+    });
+
+    it('a null-author row is deletable by a customers:archive holder', async () => {
+      prisma.customerInteraction.findFirst.mockResolvedValue({
+        id: 'interaction-1',
+        createdById: null,
+      });
+
+      await expect(
+        service.remove(
+          'customer-1',
+          'interaction-1',
+          buildCaller({ permissions: ['customers:read', 'customers:archive'] }),
+        ),
+      ).resolves.toBeUndefined();
+      expect(prisma.customerInteraction.delete).toHaveBeenCalledWith({
+        where: { id: 'interaction-1' },
+      });
+    });
+
+    it('the author can still delete their own row', async () => {
+      prisma.customerInteraction.findFirst.mockResolvedValue({
+        id: 'interaction-1',
+        createdById: 'author-1',
+      });
+
+      await expect(
+        service.remove('customer-1', 'interaction-1', buildCaller()),
+      ).resolves.toBeUndefined();
+    });
   });
 
   describe('list', () => {
@@ -219,6 +332,21 @@ describe('InteractionsService', () => {
 
       expect(prisma.customerInteraction.findMany).toHaveBeenCalledWith(
         containing({ where: { customerId: 'customer-1', ticketId: 'ticket-1' } }),
+      );
+    });
+
+    it('deliveryStatus adds exactly its own predicate', async () => {
+      prisma.customerInteraction.findMany.mockResolvedValue([]);
+
+      await service.list('customer-1', { deliveryStatus: InteractionDeliveryStatus.RECEIVED });
+
+      expect(prisma.customerInteraction.findMany).toHaveBeenCalledWith(
+        containing({
+          where: {
+            customerId: 'customer-1',
+            deliveryStatus: InteractionDeliveryStatus.RECEIVED,
+          },
+        }),
       );
     });
   });

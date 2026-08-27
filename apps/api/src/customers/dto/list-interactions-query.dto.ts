@@ -1,5 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { InteractionChannel, InteractionDirection } from '@prisma/client';
+import {
+  InteractionChannel,
+  InteractionDeliveryStatus,
+  InteractionDirection,
+} from '@prisma/client';
 import { IsEnum, IsOptional, IsUUID } from 'class-validator';
 
 /**
@@ -25,4 +29,9 @@ export class ListInteractionsQueryDto {
   @IsOptional()
   @IsUUID()
   ticketId?: string;
+
+  @ApiPropertyOptional({ enum: InteractionDeliveryStatus })
+  @IsOptional()
+  @IsEnum(InteractionDeliveryStatus)
+  deliveryStatus?: InteractionDeliveryStatus;
 }

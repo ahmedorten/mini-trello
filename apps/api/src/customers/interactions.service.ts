@@ -5,16 +5,20 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { InteractionDeliveryStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
+import { CUSTOMER_REF_SELECT } from '../tickets/tickets.service';
 import { ARCHIVE_PERMISSION, CustomersService, USER_REF_SELECT } from './customers.service';
 import { CreateInteractionDto, InteractionResponseDto } from './dto/interaction.dto';
 import { ListInteractionsQueryDto } from './dto/list-interactions-query.dto';
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
 
-const INTERACTION_SELECT = {
+/** The ONLY projection used for interaction responses. `metadata` is
+ *  deliberately absent: Story 22 Product rule 2's diagnostic column is never
+ *  projected into an API response. */
+export const INTERACTION_SELECT = {
   id: true,
   customerId: true,
   channel: true,
@@ -27,7 +31,24 @@ const INTERACTION_SELECT = {
   createdBy: { select: USER_REF_SELECT },
   ticketId: true,
   ticket: { select: { id: true, subject: true } },
+  deliveryStatus: true,
+  channelAddress: true,
+  externalId: true,
+  failureReason: true,
+  threadKey: true,
+  customer: { select: CUSTOMER_REF_SELECT },
 } satisfies Prisma.CustomerInteractionSelect;
+
+/** Everything a channel adapter contributes to a stored interaction. Absent
+ *  for the two agent-logging routes, which record LOGGED with no address. */
+export interface InteractionDelivery {
+  deliveryStatus?: InteractionDeliveryStatus;
+  channelAddress?: string | null;
+  externalId?: string | null;
+  failureReason?: string | null;
+  threadKey?: string | null;
+  metadata?: Prisma.InputJsonValue | null;
+}
 
 type SelectedInteraction = Prisma.CustomerInteractionGetPayload<{
   select: typeof INTERACTION_SELECT;
@@ -53,6 +74,7 @@ export class InteractionsService {
     if (query.channel) where.channel = query.channel;
     if (query.direction) where.direction = query.direction;
     if (query.ticketId) where.ticketId = query.ticketId;
+    if (query.deliveryStatus) where.deliveryStatus = query.deliveryStatus;
 
     const interactions = await this.prisma.customerInteraction.findMany({
       where,
@@ -68,7 +90,8 @@ export class InteractionsService {
   async create(
     customerId: string,
     dto: CreateInteractionDto,
-    caller: AuthenticatedUser,
+    caller: AuthenticatedUser | null,
+    delivery: InteractionDelivery = {},
   ): Promise<InteractionResponseDto> {
     await this.customersService.assertExists(customerId);
 
@@ -85,19 +108,34 @@ export class InteractionsService {
     const created = await this.prisma.customerInteraction.create({
       data: {
         customerId,
-        createdById: caller.id,
+        // Null for a message ingested through the inbound route: no agent
+        // typed it (Story 22 Product rule 3).
+        createdById: caller?.id ?? null,
         channel: dto.channel,
         direction: dto.direction,
         subject: dto.subject.trim(),
         body: dto.body?.trim(),
         occurredAt,
         ticketId: dto.ticketId,
+        deliveryStatus: delivery.deliveryStatus ?? InteractionDeliveryStatus.LOGGED,
+        channelAddress: delivery.channelAddress ?? null,
+        externalId: delivery.externalId ?? null,
+        failureReason: delivery.failureReason ?? null,
+        threadKey: delivery.threadKey ?? null,
+        // DbNull, not JsonNull: the column means "no payload recorded", not
+        // "a payload whose value is null".
+        metadata: delivery.metadata ?? Prisma.DbNull,
       },
       select: INTERACTION_SELECT,
     });
 
     this.logger.log(
-      { actorId: caller.id, customerId, interactionId: created.id },
+      {
+        actorId: caller?.id ?? null,
+        customerId,
+        interactionId: created.id,
+        deliveryStatus: created.deliveryStatus,
+      },
       'Interaction logged',
     );
 
@@ -114,7 +152,11 @@ export class InteractionsService {
       throw new NotFoundException('Interaction not found.');
     }
 
-    if (interaction.createdById !== caller.id && !caller.permissions.includes(ARCHIVE_PERMISSION)) {
+    // A null author is nobody's row: an ingested message can only be deleted by
+    // an ARCHIVE_PERMISSION holder, by rule rather than by accident.
+    const isAuthor = interaction.createdById !== null && interaction.createdById === caller.id;
+
+    if (!isAuthor && !caller.permissions.includes(ARCHIVE_PERMISSION)) {
       throw new ForbiddenException(
         'Only the author or a customer administrator can delete an interaction.',
       );
@@ -158,6 +200,12 @@ export class InteractionsService {
       createdAt: interaction.createdAt.toISOString(),
       ticketId: interaction.ticketId,
       ticket: interaction.ticket,
+      customer: interaction.customer,
+      deliveryStatus: interaction.deliveryStatus,
+      channelAddress: interaction.channelAddress,
+      externalId: interaction.externalId,
+      failureReason: interaction.failureReason,
+      threadKey: interaction.threadKey,
     };
   }
 }

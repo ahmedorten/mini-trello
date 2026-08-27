@@ -67,6 +67,7 @@ const permissions: { key: string; description: string }[] = [
   { key: 'quick-replies:read', description: 'View the quick-reply catalogue' },
   { key: 'quick-replies:write', description: 'Create, update, and delete quick replies' },
   { key: 'tickets:assign', description: 'Assign a ticket to a user other than yourself' },
+  { key: 'communication:send', description: 'Send a message through a communication channel' },
 ];
 
 const roles: { key: string; name: string; description: string; permissions: string[] }[] = [
@@ -109,6 +110,7 @@ const roles: { key: string; name: string; description: string; permissions: stri
       'quick-replies:read',
       'quick-replies:write',
       'tickets:assign',
+      'communication:send',
     ],
   },
   {
@@ -136,6 +138,7 @@ const roles: { key: string; name: string; description: string; permissions: stri
       'tasks:manage',
       'quick-replies:read',
       'tickets:assign',
+      'communication:send',
     ],
   },
   {
@@ -158,6 +161,7 @@ const roles: { key: string; name: string; description: string; permissions: stri
       'tasks:read',
       'tasks:write',
       'quick-replies:read',
+      'communication:send',
     ],
   },
   {

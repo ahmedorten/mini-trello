@@ -8,7 +8,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
-import { CHANNEL_ORDER, CHANNEL_REGISTRY } from './channel.registry';
+import { ChannelRegistryService } from './channel-registry.service';
 import { ChannelListDto } from './dto/channel.dto';
 
 @ApiTags('communication')
@@ -17,6 +17,8 @@ import { ChannelListDto } from './dto/channel.dto';
 @ApiForbiddenResponse({ description: 'The caller lacks the required permission.' })
 @Controller('communication/channels')
 export class ChannelsController {
+  constructor(private readonly registry: ChannelRegistryService) {}
+
   @Get()
   @RequirePermissions('customers:read')
   @ApiOperation({
@@ -27,6 +29,6 @@ export class ChannelsController {
   })
   @ApiOkResponse({ type: ChannelListDto })
   list(): ChannelListDto {
-    return { items: CHANNEL_ORDER.map((key) => CHANNEL_REGISTRY[key]) };
+    return { items: this.registry.descriptors() };
   }
 }

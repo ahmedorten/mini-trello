@@ -55,7 +55,7 @@ async function bootstrap(): Promise<void> {
     .addTag('ticket-history', "A ticket's audit trail of tracked field changes")
     .addTag('dashboard', 'Aggregated agent dashboard reads')
     .addTag('ticket-interactions', 'The communication timeline for one ticket')
-    .addTag('communication', 'Communication channel metadata')
+    .addTag('communication', 'Communication channels, dispatch, and inbound ingestion')
     .addTag('agent-tasks', 'Agent tasks and reminders')
     .addTag('quick-replies', 'Canned responses, per locale')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT', in: 'header' }, 'bearer')

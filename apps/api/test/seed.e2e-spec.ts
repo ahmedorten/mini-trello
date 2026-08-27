@@ -40,9 +40,29 @@ describe('Seed (e2e)', () => {
     expect(countAfter).toBe(3);
   });
 
-  it('creates exactly 28 permissions', async () => {
+  it('creates exactly 29 permissions', async () => {
     const count = await prisma.permission.count();
-    expect(count).toBe(28);
+    expect(count).toBe(29);
+  });
+
+  it('contains the communication:send permission key', async () => {
+    const key = await prisma.permission.findUnique({
+      where: { key: 'communication:send' },
+      select: { key: true },
+    });
+
+    expect(key).not.toBeNull();
+  });
+
+  it('grants communication:send to the four staff roles and no others', async () => {
+    const roles = await prisma.role.findMany({
+      where: { permissions: { some: { permission: { key: 'communication:send' } } } },
+      select: { key: true },
+    });
+
+    expect(roles.map((role) => role.key).sort()).toEqual(
+      ['crm-manager', 'support-agent', 'support-supervisor', 'system-administrator'].sort(),
+    );
   });
 
   it('contains all six customer-management permission keys', async () => {
@@ -132,9 +152,9 @@ describe('Seed (e2e)', () => {
       }),
     ]);
 
-    expect(systemAdministrator._count.permissions).toBe(28);
+    expect(systemAdministrator._count.permissions).toBe(29);
     expect(customer._count.permissions).toBe(0);
-    expect(supportAgent._count.permissions).toBe(15);
+    expect(supportAgent._count.permissions).toBe(16);
   });
 
   it("holds system-administrator's grant count equal to the total permission count", async () => {

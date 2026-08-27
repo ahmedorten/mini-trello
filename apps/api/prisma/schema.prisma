@@ -41,6 +41,19 @@ enum InteractionDirection {
   OUTBOUND
 }
 
+/// How an interaction travelled, as distinct from whether it happened.
+/// LOGGED and RECEIVED are the only values reachable today: no channel has an
+/// external transport (ChannelAdapter.capabilities.providerConfigured is false
+/// for all eight), so every outbound dispatch is recorded, not sent.
+/// QUEUED/SENT/FAILED are the declared seam for a future provider.
+enum InteractionDeliveryStatus {
+  LOGGED
+  RECEIVED
+  QUEUED
+  SENT
+  FAILED
+}
+
 enum TicketCategory {
   GENERAL
   TECHNICAL
@@ -315,23 +328,34 @@ model CustomerAttachment {
 /// the agent supplies; `createdAt` is when it was recorded. They differ whenever
 /// a call is logged after the fact, and the timeline sorts on the former.
 model CustomerInteraction {
-  id          String               @id @default(uuid()) @db.Uuid
-  customerId  String               @map("customer_id") @db.Uuid
-  createdById String               @map("created_by_id") @db.Uuid
-  channel     InteractionChannel
-  direction   InteractionDirection
-  subject     String
-  body        String?
-  occurredAt  DateTime             @map("occurred_at")
-  createdAt   DateTime             @default(now()) @map("created_at")
-  ticketId    String?              @map("ticket_id") @db.Uuid
+  id             String                    @id @default(uuid()) @db.Uuid
+  customerId     String                    @map("customer_id") @db.Uuid
+  createdById    String?                   @map("created_by_id") @db.Uuid
+  channel        InteractionChannel
+  direction      InteractionDirection
+  subject        String
+  body           String?
+  occurredAt     DateTime                  @map("occurred_at")
+  createdAt      DateTime                  @default(now()) @map("created_at")
+  ticketId       String?                   @map("ticket_id") @db.Uuid
+  deliveryStatus InteractionDeliveryStatus @default(LOGGED) @map("delivery_status")
+  channelAddress String?                   @map("channel_address")
+  externalId     String?                   @map("external_id")
+  failureReason  String?                   @map("failure_reason")
+  threadKey      String?                   @map("thread_key")
+  /// Raw provider payload echo, for diagnosing a delivery problem. NEVER read
+  /// by application logic and NEVER projected into an API response.
+  metadata       Json?
 
   customer  Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  createdBy User     @relation("CustomerInteractionAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+  createdBy User?    @relation("CustomerInteractionAuthor", fields: [createdById], references: [id], onDelete: SetNull)
   ticket    Ticket?  @relation(fields: [ticketId], references: [id], onDelete: SetNull)
 
+  @@unique([channel, externalId])
   @@index([customerId, occurredAt])
   @@index([ticketId, occurredAt])
+  @@index([customerId, channel, threadKey])
+  @@index([occurredAt])
   @@map("customer_interactions")
 }
 

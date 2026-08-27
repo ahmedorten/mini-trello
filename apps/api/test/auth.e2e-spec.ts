@@ -342,6 +342,7 @@ describe('Auth (e2e)', () => {
         'attachments:write',
         'branches:read',
         'branches:write',
+        'communication:send',
         'customers:archive',
         'customers:read',
         'customers:write',

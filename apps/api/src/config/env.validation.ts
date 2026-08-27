@@ -80,6 +80,18 @@ export class EnvironmentVariables {
   @Min(1024)
   @Max(52_428_800)
   MAX_UPLOAD_BYTES: number = 10_485_760;
+
+  /** Shared secret the inbound-ingestion route requires in x-communication-secret
+   *  (Story 23). Absent by default, and absent means that route returns 503 —
+   *  there is no unauthenticated write path unless an operator opts in.
+   *
+   *  @IsOptional() is load-bearing: validateEnv throws on any constraint
+   *  violation, so a required variable here would stop every existing .env
+   *  from booting. */
+  @IsString()
+  @IsOptional()
+  @MinLength(32, { message: 'COMMUNICATION_INBOUND_SECRET must be at least 32 characters' })
+  COMMUNICATION_INBOUND_SECRET?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>): EnvironmentVariables {

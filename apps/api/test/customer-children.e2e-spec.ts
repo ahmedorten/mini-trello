@@ -307,6 +307,29 @@ describe('Customer children — notes, attachments, interactions (e2e)', () => {
       );
     });
 
+    it('pins the agent-logging contract: LOGGED, no address, no thread, a real author', async () => {
+      const res = await request(server())
+        .get(`/api/customers/${customerId}/interactions`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      const row = res.body.find((r: { id: string }) => r.id === interactionId);
+
+      expect(row).toEqual(
+        expect.objectContaining({
+          deliveryStatus: 'LOGGED',
+          channelAddress: null,
+          threadKey: null,
+          externalId: null,
+          failureReason: null,
+        }),
+      );
+      expect(row.createdBy).not.toBeNull();
+      expect(row.createdBy.id).toEqual(expect.any(String));
+      // Story 22 Product rule 2: the diagnostic column is never projected.
+      expect(row).not.toHaveProperty('metadata');
+    });
+
     it('?channel=EMAIL filters', async () => {
       const emailInteraction = await request(server())
         .post(`/api/customers/${customerId}/interactions`)

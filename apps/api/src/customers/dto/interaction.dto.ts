@@ -1,5 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { InteractionChannel, InteractionDirection } from '@prisma/client';
+import {
+  InteractionChannel,
+  InteractionDeliveryStatus,
+  InteractionDirection,
+} from '@prisma/client';
 import {
   IsDateString,
   IsEnum,
@@ -60,6 +64,19 @@ export class InteractionTicketRefDto {
   subject!: string;
 }
 
+/** The customer an interaction belongs to. Present on every interaction
+ *  response so the cross-customer timeline (Story 23) needs no second read. */
+export class InteractionCustomerRefDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'Layla Ibrahim' })
+  name!: string;
+
+  @ApiProperty({ required: false, nullable: true })
+  email!: string | null;
+}
+
 export class InteractionResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
@@ -82,8 +99,14 @@ export class InteractionResponseDto {
   @ApiProperty({ format: 'date-time' })
   occurredAt!: string;
 
-  @ApiProperty({ type: () => UserRefDto })
-  createdBy!: UserRefDto;
+  @ApiProperty({
+    type: () => UserRefDto,
+    nullable: true,
+    description:
+      'The agent who logged it, or null for a message ingested through the ' +
+      'inbound route — no user typed it (Story 22 Product rule 3).',
+  })
+  createdBy!: UserRefDto | null;
 
   @ApiProperty({ format: 'date-time' })
   createdAt!: string;
@@ -93,4 +116,31 @@ export class InteractionResponseDto {
 
   @ApiProperty({ type: () => InteractionTicketRefDto, nullable: true })
   ticket!: InteractionTicketRefDto | null;
+
+  @ApiProperty({ type: () => InteractionCustomerRefDto })
+  customer!: InteractionCustomerRefDto;
+
+  @ApiProperty({ enum: InteractionDeliveryStatus })
+  deliveryStatus!: InteractionDeliveryStatus;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description:
+      'The counterparty address on this channel: a mailbox, an E.164 number, a session id.',
+  })
+  channelAddress!: string | null;
+
+  @ApiProperty({ required: false, nullable: true, description: "The provider's message id." })
+  externalId!: string | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  failureReason!: string | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'Groups rows into one conversation. Null for rows logged before Story 22.',
+  })
+  threadKey!: string | null;
 }

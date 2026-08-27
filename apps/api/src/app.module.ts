@@ -10,6 +10,7 @@ import { UsersModule } from './users/users.module';
 import { OrgModule } from './org/org.module';
 import { CustomersModule } from './customers/customers.module';
 import { TicketsModule } from './tickets/tickets.module';
+import { CommunicationModule } from './communication/communication.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { TasksModule } from './tasks/tasks.module';
 import { QuickRepliesModule } from './quick-replies/quick-replies.module';
@@ -60,6 +61,7 @@ import { validateEnv } from './config/env.validation';
     OrgModule,
     CustomersModule,
     TicketsModule,
+    CommunicationModule,
     DashboardModule,
     TasksModule,
     QuickRepliesModule,
