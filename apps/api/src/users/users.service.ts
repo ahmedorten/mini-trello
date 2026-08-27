@@ -13,7 +13,7 @@ import { TokenService } from '../auth/token.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { CreateUserDto } from './dto/create-user.dto';
-import { ListUsersQueryDto } from './dto/list-users-query.dto';
+import { ListUsersQueryDto, UserSortField } from './dto/list-users-query.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SetUserRolesDto } from './dto/set-user-roles.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -51,6 +51,37 @@ export class UsersService {
     private readonly tokenService: TokenService,
   ) {}
 
+  /** Whitelisted orderings for the user list. Product rule 3: typed against
+   *  Prisma's own input type, so a column that does not exist is a compile error. */
+  private static readonly SORT_COLUMNS: Record<
+    UserSortField,
+    (direction: Prisma.SortOrder) => Prisma.UserOrderByWithRelationInput[]
+  > = {
+    [UserSortField.FullName]: (direction) => [{ fullName: direction }],
+    [UserSortField.Email]: (direction) => [{ email: direction }],
+    [UserSortField.IsActive]: (direction) => [{ isActive: direction }],
+    // Nullable column pins NULLs last in BOTH directions — Product rule 5.
+    [UserSortField.LastLoginAt]: (direction) => [
+      { lastLoginAt: { sort: direction, nulls: 'last' } },
+    ],
+    [UserSortField.CreatedAt]: (direction) => [{ createdAt: direction }],
+  };
+
+  /** The pre-Story-25 ordering, reproduced exactly when no sort is requested. */
+  private static readonly SORT_FALLBACK: Prisma.UserOrderByWithRelationInput[] = [
+    { fullName: 'asc' },
+    { email: 'asc' },
+  ];
+
+  private static resolveOrderBy(query: ListUsersQueryDto): Prisma.UserOrderByWithRelationInput[] {
+    const columns = query.sort
+      ? UsersService.SORT_COLUMNS[query.sort](query.order ?? 'asc')
+      : UsersService.SORT_FALLBACK;
+
+    // Product rule 4: a unique trailing key, so skip/take is deterministic.
+    return [...columns, { id: 'asc' }];
+  }
+
   async list(query: ListUsersQueryDto): Promise<PaginatedUsersDto> {
     const where: Prisma.UserWhereInput = {};
 
@@ -82,7 +113,7 @@ export class UsersService {
       this.prisma.user.findMany({
         where,
         select: USER_SELECT,
-        orderBy: [{ fullName: 'asc' }, { email: 'asc' }],
+        orderBy: UsersService.resolveOrderBy(query),
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
       }),

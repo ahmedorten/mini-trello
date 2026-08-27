@@ -5,7 +5,12 @@ import { TicketsService } from './tickets.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import type { CreateTicketDto } from './dto/create-ticket.dto';
-import { TicketScope, type ListTicketsQueryDto } from './dto/list-tickets-query.dto';
+import {
+  TicketScope,
+  TicketSortField,
+  type ListTicketsQueryDto,
+} from './dto/list-tickets-query.dto';
+import { SortOrder } from '../common/dto/pagination.dto';
 
 function containing(obj: Record<string, unknown>): unknown {
   return expect.objectContaining(obj);
@@ -156,14 +161,73 @@ describe('TicketsService', () => {
       );
     });
 
-    it('orders by createdAt desc', async () => {
+    it('orders by createdAt desc, with the id tie-breaker appended', async () => {
       prisma.ticket.findMany.mockResolvedValue([]);
       prisma.ticket.count.mockResolvedValue(0);
 
       await service.list(query(), buildCaller());
 
       expect(prisma.ticket.findMany).toHaveBeenCalledWith(
-        containing({ orderBy: { createdAt: 'desc' } }),
+        containing({ orderBy: [{ createdAt: 'desc' }, { id: 'asc' }] }),
+      );
+    });
+
+    it('orders by the requested column and direction when sort is supplied', async () => {
+      prisma.ticket.findMany.mockResolvedValue([]);
+      prisma.ticket.count.mockResolvedValue(0);
+
+      await service.list(
+        query({ sort: TicketSortField.Priority, order: SortOrder.Asc }),
+        buildCaller(),
+      );
+
+      expect(prisma.ticket.findMany).toHaveBeenCalledWith(
+        containing({ orderBy: [{ priority: 'asc' }, { id: 'asc' }] }),
+      );
+    });
+
+    it('defaults to descending when order is omitted', async () => {
+      prisma.ticket.findMany.mockResolvedValue([]);
+      prisma.ticket.count.mockResolvedValue(0);
+
+      await service.list(query({ sort: TicketSortField.Subject }), buildCaller());
+
+      expect(prisma.ticket.findMany).toHaveBeenCalledWith(
+        containing({ orderBy: [{ subject: 'desc' }, { id: 'asc' }] }),
+      );
+    });
+
+    it('ignores order when sort is absent', async () => {
+      prisma.ticket.findMany.mockResolvedValue([]);
+      prisma.ticket.count.mockResolvedValue(0);
+
+      await service.list(query({ order: SortOrder.Asc }), buildCaller());
+
+      expect(prisma.ticket.findMany).toHaveBeenCalledWith(
+        containing({ orderBy: [{ createdAt: 'desc' }, { id: 'asc' }] }),
+      );
+    });
+
+    it('composes sort with scope=mine and a search term without disturbing where.AND', async () => {
+      const caller = buildCaller({ id: 'caller-9' });
+      prisma.ticket.findMany.mockResolvedValue([]);
+      prisma.ticket.count.mockResolvedValue(0);
+
+      await service.list(
+        query({
+          scope: TicketScope.Mine,
+          search: 'login',
+          sort: TicketSortField.Status,
+          order: SortOrder.Asc,
+        }),
+        caller,
+      );
+
+      expect(prisma.ticket.findMany).toHaveBeenCalledWith(
+        containing({
+          where: containing({ assignedAgentId: 'caller-9' }),
+          orderBy: [{ status: 'asc' }, { id: 'asc' }],
+        }),
       );
     });
 

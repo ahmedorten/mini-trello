@@ -2,10 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { AgentTaskStatus } from '@prisma/client';
 import { AgentTasksService } from './agent-tasks.service';
-import { AgentTaskScope } from './dto/list-agent-tasks-query.dto';
+import { AgentTaskScope, AgentTaskSortField } from './dto/list-agent-tasks-query.dto';
 import { TicketsService } from '../tickets/tickets.service';
 import { CustomersService } from '../customers/customers.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { SortOrder } from '../common/dto/pagination.dto';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import type { ListAgentTasksQueryDto } from './dto/list-agent-tasks-query.dto';
 
@@ -181,14 +182,67 @@ describe('AgentTasksService', () => {
       expect(calledWith.where).not.toHaveProperty('assignee');
     });
 
-    it('orders by dueAt asc then createdAt desc', async () => {
+    it('orders by dueAt asc then createdAt desc, with the id tie-breaker appended', async () => {
       const caller = buildCaller();
 
       await service.list(query(), caller);
 
       expect(prisma.agentTask.findMany).toHaveBeenCalledWith(
-        containing({ orderBy: [{ dueAt: 'asc' }, { createdAt: 'desc' }] }),
+        containing({ orderBy: [{ dueAt: 'asc' }, { createdAt: 'desc' }, { id: 'asc' }] }),
       );
+    });
+
+    it('orders by the requested column and direction when sort is supplied', async () => {
+      const caller = buildCaller();
+
+      await service.list(query({ sort: AgentTaskSortField.Title, order: SortOrder.Desc }), caller);
+
+      expect(prisma.agentTask.findMany).toHaveBeenCalledWith(
+        containing({ orderBy: [{ title: 'desc' }, { id: 'asc' }] }),
+      );
+    });
+
+    it('ignores order when sort is absent', async () => {
+      const caller = buildCaller();
+
+      await service.list(query({ order: SortOrder.Desc }), caller);
+
+      expect(prisma.agentTask.findMany).toHaveBeenCalledWith(
+        containing({ orderBy: [{ dueAt: 'asc' }, { createdAt: 'desc' }, { id: 'asc' }] }),
+      );
+    });
+
+    it('pins NULLs last when sorting by the nullable dueAt column, ascending', async () => {
+      const caller = buildCaller();
+
+      await service.list(query({ sort: AgentTaskSortField.DueAt, order: SortOrder.Asc }), caller);
+
+      expect(prisma.agentTask.findMany).toHaveBeenCalledWith(
+        containing({ orderBy: [{ dueAt: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }] }),
+      );
+    });
+
+    it('pins NULLs last when sorting by the nullable dueAt column, descending', async () => {
+      const caller = buildCaller();
+
+      await service.list(query({ sort: AgentTaskSortField.DueAt, order: SortOrder.Desc }), caller);
+
+      expect(prisma.agentTask.findMany).toHaveBeenCalledWith(
+        containing({ orderBy: [{ dueAt: { sort: 'desc', nulls: 'last' } }, { id: 'asc' }] }),
+      );
+    });
+
+    it('combines overdueOnly with a sort without disturbing the filter', async () => {
+      const caller = buildCaller();
+
+      await service.list(query({ overdueOnly: true, sort: AgentTaskSortField.Status }), caller);
+
+      const calledWith = prisma.agentTask.findMany.mock.calls[0][0] as {
+        where: { dueAt: { lt: Date }; status: { in: AgentTaskStatus[] } };
+        orderBy: unknown[];
+      };
+      expect(calledWith.where.dueAt.lt).toBeInstanceOf(Date);
+      expect(calledWith.orderBy).toEqual([{ status: 'asc' }, { id: 'asc' }]);
     });
 
     it('pagination meta matches the page/pageSize/total/totalPages shape', async () => {

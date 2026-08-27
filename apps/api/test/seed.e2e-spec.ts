@@ -447,4 +447,67 @@ describe('Seed (e2e)', () => {
 
     expect(supportAgentKeysAfter).toEqual(supportAgentKeysBefore);
   });
+
+  describe('dev test users (Story 25)', () => {
+    const DEV_EMAILS = ['dev.admin@crm.local', 'dev.agent@crm.local', 'dev.customer@crm.local'];
+    let originalSeedDevUsers: string | undefined;
+    let originalSeedDevPassword: string | undefined;
+    let originalNodeEnv: string | undefined;
+
+    beforeEach(async () => {
+      originalSeedDevUsers = process.env.SEED_DEV_USERS;
+      originalSeedDevPassword = process.env.SEED_DEV_USER_PASSWORD;
+      originalNodeEnv = process.env.NODE_ENV;
+
+      // Establish a known-clean starting state: another test in this file (or
+      // a developer's own `npm run prisma:seed`) may already have created
+      // these accounts. Each guard test asserts against its OWN effect, not
+      // against whatever the database happened to hold beforehand.
+      await prisma.user.deleteMany({ where: { email: { in: DEV_EMAILS } } });
+    });
+
+    afterEach(async () => {
+      if (originalSeedDevUsers === undefined) delete process.env.SEED_DEV_USERS;
+      else process.env.SEED_DEV_USERS = originalSeedDevUsers;
+
+      if (originalSeedDevPassword === undefined) delete process.env.SEED_DEV_USER_PASSWORD;
+      else process.env.SEED_DEV_USER_PASSWORD = originalSeedDevPassword;
+
+      if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = originalNodeEnv;
+
+      await prisma.user.deleteMany({ where: { email: { in: DEV_EMAILS } } });
+    });
+
+    it('with SEED_DEV_USERS unset creates no dev.*@crm.local user', async () => {
+      delete process.env.SEED_DEV_USERS;
+
+      await expect(main()).resolves.not.toThrow();
+
+      const count = await prisma.user.count({ where: { email: { in: DEV_EMAILS } } });
+      expect(count).toBe(0);
+    });
+
+    it('SEED_DEV_USERS=true with NODE_ENV=production throws and creates no dev user', async () => {
+      process.env.SEED_DEV_USERS = 'true';
+      process.env.SEED_DEV_USER_PASSWORD = 'Passw0rd1234';
+      process.env.NODE_ENV = 'production';
+
+      await expect(main()).rejects.toThrow(/NODE_ENV=production/);
+
+      const count = await prisma.user.count({ where: { email: { in: DEV_EMAILS } } });
+      expect(count).toBe(0);
+    });
+
+    it('SEED_DEV_USERS=true with no SEED_DEV_USER_PASSWORD throws and creates no dev user', async () => {
+      process.env.SEED_DEV_USERS = 'true';
+      delete process.env.SEED_DEV_USER_PASSWORD;
+      process.env.NODE_ENV = 'development';
+
+      await expect(main()).rejects.toThrow(/SEED_DEV_USER_PASSWORD/);
+
+      const count = await prisma.user.count({ where: { email: { in: DEV_EMAILS } } });
+      expect(count).toBe(0);
+    });
+  });
 });

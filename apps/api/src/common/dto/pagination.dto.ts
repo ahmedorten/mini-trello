@@ -4,6 +4,14 @@ import { IsInt, IsOptional, Max, Min } from 'class-validator';
 export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;
 
+/** Sort direction, shared by every list endpoint. Deliberately NOT a field on
+ *  PaginationQueryDto: each resource has its own default column and its own
+ *  default direction, so the pair lives on the resource query DTO. */
+export enum SortOrder {
+  Asc = 'asc',
+  Desc = 'desc',
+}
+
 export class PaginationQueryDto {
   @ApiPropertyOptional({ minimum: 1, default: 1 })
   @IsOptional()

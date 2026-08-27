@@ -165,4 +165,13 @@ describe('Ticket schema (e2e)', () => {
     expect(ordered[0]?.id).toBe(second.id);
     expect(ordered[1]?.id).toBe(first.id);
   });
+
+  it('has indexes on created_at and updated_at (Story 25)', async () => {
+    const indexes = await prisma.$queryRaw<{ indexname: string }[]>`
+      SELECT indexname FROM pg_indexes WHERE tablename = 'tickets'
+    `;
+    const names = indexes.map((row) => row.indexname);
+
+    expect(names).toEqual(expect.arrayContaining(['tickets_created_at_idx', 'tickets_updated_at_idx']));
+  });
 });

@@ -650,4 +650,55 @@ describe('Tickets (e2e)', () => {
       await createTicket(customerToken).expect(403);
     });
   });
+
+  describe('list sorting', () => {
+    let firstItemBeforeSort: string;
+
+    beforeAll(async () => {
+      await createTicket(adminToken, { subject: `E2E Sort A ${randomUUID()}` }).expect(201);
+      await createTicket(adminToken, { subject: `E2E Sort B ${randomUUID()}` }).expect(201);
+      await createTicket(adminToken, { subject: `E2E Sort C ${randomUUID()}` }).expect(201);
+
+      const res = await request(server())
+        .get('/api/tickets')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      firstItemBeforeSort = res.body.items[0].id;
+    });
+
+    it('?sort=subject&order=asc returns ascending subject order', async () => {
+      const res = await request(server())
+        .get('/api/tickets?sort=subject&order=asc')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      const subjects = res.body.items.map((item: { subject: string }) => item.subject);
+      const sorted = [...subjects].sort((a, b) => a.localeCompare(b));
+      expect(subjects).toEqual(sorted);
+    });
+
+    it('?sort=nope → 400', async () => {
+      await request(server())
+        .get('/api/tickets?sort=nope')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(400);
+    });
+
+    it('?sortBy=createdAt → 400 (forbidNonWhitelisted)', async () => {
+      await request(server())
+        .get('/api/tickets?sortBy=createdAt')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(400);
+    });
+
+    it('a request with no sort returns the same first item as before the change', async () => {
+      const res = await request(server())
+        .get('/api/tickets')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(res.body.items[0].id).toBe(firstItemBeforeSort);
+    });
+  });
 });

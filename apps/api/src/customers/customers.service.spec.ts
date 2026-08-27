@@ -5,7 +5,8 @@ import { ARCHIVE_PERMISSION, CustomersService } from './customers.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import type { CreateCustomerDto } from './dto/create-customer.dto';
-import type { ListCustomersQueryDto } from './dto/list-customers-query.dto';
+import { CustomerSortField, type ListCustomersQueryDto } from './dto/list-customers-query.dto';
+import { SortOrder } from '../common/dto/pagination.dto';
 
 /**
  * jest's asymmetric matchers (`objectContaining`, `anything`, ...) are typed
@@ -115,7 +116,56 @@ describe('CustomersService', () => {
       await service.list(query());
 
       expect(prisma.customer.findMany).toHaveBeenCalledWith(
-        containing({ where: {}, skip: 0, take: 20 }),
+        containing({
+          where: {},
+          skip: 0,
+          take: 20,
+          orderBy: [{ name: 'asc' }, { createdAt: 'desc' }, { id: 'asc' }],
+        }),
+      );
+    });
+
+    it('orders by the requested column and direction when sort is supplied', async () => {
+      prisma.customer.findMany.mockResolvedValue([]);
+      prisma.customer.count.mockResolvedValue(0);
+
+      await service.list(query({ sort: CustomerSortField.Status, order: SortOrder.Desc }));
+
+      expect(prisma.customer.findMany).toHaveBeenCalledWith(
+        containing({ orderBy: [{ status: 'desc' }, { id: 'asc' }] }),
+      );
+    });
+
+    it('ignores order when sort is absent', async () => {
+      prisma.customer.findMany.mockResolvedValue([]);
+      prisma.customer.count.mockResolvedValue(0);
+
+      await service.list(query({ order: SortOrder.Desc }));
+
+      expect(prisma.customer.findMany).toHaveBeenCalledWith(
+        containing({ orderBy: [{ name: 'asc' }, { createdAt: 'desc' }, { id: 'asc' }] }),
+      );
+    });
+
+    it('pins NULLs last when sorting by the nullable city column', async () => {
+      prisma.customer.findMany.mockResolvedValue([]);
+      prisma.customer.count.mockResolvedValue(0);
+
+      await service.list(query({ sort: CustomerSortField.City, order: SortOrder.Asc }));
+
+      expect(prisma.customer.findMany).toHaveBeenCalledWith(
+        containing({ orderBy: [{ city: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }] }),
+      );
+    });
+
+    it('always appends { id: "asc" } as the tie-breaker', async () => {
+      prisma.customer.findMany.mockResolvedValue([]);
+      prisma.customer.count.mockResolvedValue(0);
+
+      await service.list(query({ sort: CustomerSortField.CreatedAt, order: SortOrder.Desc }));
+
+      expect(prisma.customer.findMany).toHaveBeenCalledWith(
+        containing({ orderBy: [{ createdAt: 'desc' }, { id: 'asc' }] }),
       );
     });
 

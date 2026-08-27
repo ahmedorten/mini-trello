@@ -174,6 +174,8 @@ model User {
   @@index([departmentId])
   @@index([branchId])
   @@index([isActive])
+  @@index([fullName])
+  @@index([lastLoginAt])
   @@map("users")
 }
 
@@ -283,6 +285,8 @@ model Customer {
   @@index([status])
   @@index([assignedAgentId])
   @@index([name])
+  @@index([createdAt])
+  @@index([updatedAt])
   @@map("customers")
 }
 
@@ -392,6 +396,8 @@ model Ticket {
   @@index([category])
   @@index([assignedAgentId])
   @@index([customerId])
+  @@index([createdAt])
+  @@index([updatedAt])
   @@map("tickets")
 }
 
@@ -484,6 +490,7 @@ model AgentTask {
   @@index([assigneeId, dueAt])
   @@index([ticketId])
   @@index([customerId])
+  @@index([createdAt])
   @@map("agent_tasks")
 }
 

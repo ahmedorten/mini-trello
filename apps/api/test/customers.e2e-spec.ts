@@ -431,4 +431,18 @@ describe('Customers (e2e)', () => {
       expect(serialised).not.toContain('scrypt$');
     });
   });
+
+  describe('list sorting', () => {
+    it('?sort=createdAt&order=desc puts the most recently created fixture customer first', async () => {
+      await createCustomer(adminToken, { name: 'E2E Sort Older' }).expect(201);
+      const newest = await createCustomer(adminToken, { name: 'E2E Sort Newest' }).expect(201);
+
+      const res = await request(server())
+        .get('/api/customers?sort=createdAt&order=desc')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(res.body.items[0].id).toBe(newest.body.id);
+    });
+  });
 });

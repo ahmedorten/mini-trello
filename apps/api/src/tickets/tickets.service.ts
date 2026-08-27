@@ -11,7 +11,7 @@ import { USER_REF_SELECT } from '../customers/customers.service';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
-import { ListTicketsQueryDto, TicketScope } from './dto/list-tickets-query.dto';
+import { ListTicketsQueryDto, TicketScope, TicketSortField } from './dto/list-tickets-query.dto';
 import { PaginatedTicketsDto, TicketResponseDto } from './dto/ticket-response.dto';
 
 export const TICKET_MANAGE_PERMISSION = 'tickets:manage';
@@ -50,6 +50,36 @@ export class TicketsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Whitelisted orderings for the ticket list. Product rule 3: typed against
+   *  Prisma's own input type, so a column that does not exist is a compile error. */
+  private static readonly SORT_COLUMNS: Record<
+    TicketSortField,
+    (direction: Prisma.SortOrder) => Prisma.TicketOrderByWithRelationInput[]
+  > = {
+    [TicketSortField.Subject]: (direction) => [{ subject: direction }],
+    [TicketSortField.Category]: (direction) => [{ category: direction }],
+    [TicketSortField.Priority]: (direction) => [{ priority: direction }],
+    [TicketSortField.Status]: (direction) => [{ status: direction }],
+    [TicketSortField.CreatedAt]: (direction) => [{ createdAt: direction }],
+    [TicketSortField.UpdatedAt]: (direction) => [{ updatedAt: direction }],
+  };
+
+  /** The pre-Story-25 ordering, reproduced exactly when no sort is requested. */
+  private static readonly SORT_FALLBACK: Prisma.TicketOrderByWithRelationInput[] = [
+    { createdAt: 'desc' },
+  ];
+
+  private static resolveOrderBy(
+    query: ListTicketsQueryDto,
+  ): Prisma.TicketOrderByWithRelationInput[] {
+    const columns = query.sort
+      ? TicketsService.SORT_COLUMNS[query.sort](query.order ?? 'desc')
+      : TicketsService.SORT_FALLBACK;
+
+    // Product rule 4: a unique trailing key, so skip/take is deterministic.
+    return [...columns, { id: 'asc' }];
+  }
+
   async list(query: ListTicketsQueryDto, caller: AuthenticatedUser): Promise<PaginatedTicketsDto> {
     const where: Prisma.TicketWhereInput = {};
 
@@ -81,7 +111,7 @@ export class TicketsService {
       this.prisma.ticket.findMany({
         where,
         select: TICKET_SELECT,
-        orderBy: { createdAt: 'desc' },
+        orderBy: TicketsService.resolveOrderBy(query),
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
       }),

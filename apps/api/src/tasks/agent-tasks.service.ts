@@ -13,7 +13,11 @@ import { CUSTOMER_REF_SELECT, TicketsService } from '../tickets/tickets.service'
 import { AgentTaskResponseDto, PaginatedAgentTasksDto } from './dto/agent-task.dto';
 import { CreateAgentTaskDto } from './dto/create-agent-task.dto';
 import { UpdateAgentTaskDto } from './dto/update-agent-task.dto';
-import { AgentTaskScope, ListAgentTasksQueryDto } from './dto/list-agent-tasks-query.dto';
+import {
+  AgentTaskScope,
+  AgentTaskSortField,
+  ListAgentTasksQueryDto,
+} from './dto/list-agent-tasks-query.dto';
 
 export const TASK_MANAGE_PERMISSION = 'tasks:manage';
 
@@ -51,6 +55,37 @@ export class AgentTasksService {
     private readonly ticketsService: TicketsService,
     private readonly customersService: CustomersService,
   ) {}
+
+  /** Whitelisted orderings for the agent-task list. Product rule 3: typed
+   *  against Prisma's own input type, so a column that does not exist is a
+   *  compile error. */
+  private static readonly SORT_COLUMNS: Record<
+    AgentTaskSortField,
+    (direction: Prisma.SortOrder) => Prisma.AgentTaskOrderByWithRelationInput[]
+  > = {
+    [AgentTaskSortField.Title]: (direction) => [{ title: direction }],
+    [AgentTaskSortField.Status]: (direction) => [{ status: direction }],
+    // Nullable column pins NULLs last in BOTH directions — Product rule 5.
+    [AgentTaskSortField.DueAt]: (direction) => [{ dueAt: { sort: direction, nulls: 'last' } }],
+    [AgentTaskSortField.CreatedAt]: (direction) => [{ createdAt: direction }],
+  };
+
+  /** The pre-Story-25 ordering, reproduced exactly when no sort is requested. */
+  private static readonly SORT_FALLBACK: Prisma.AgentTaskOrderByWithRelationInput[] = [
+    { dueAt: 'asc' },
+    { createdAt: 'desc' },
+  ];
+
+  private static resolveOrderBy(
+    query: ListAgentTasksQueryDto,
+  ): Prisma.AgentTaskOrderByWithRelationInput[] {
+    const columns = query.sort
+      ? AgentTasksService.SORT_COLUMNS[query.sort](query.order ?? 'asc')
+      : AgentTasksService.SORT_FALLBACK;
+
+    // Product rule 4: a unique trailing key, so skip/take is deterministic.
+    return [...columns, { id: 'asc' }];
+  }
 
   async list(
     query: ListAgentTasksQueryDto,
@@ -90,7 +125,7 @@ export class AgentTasksService {
       this.prisma.agentTask.findMany({
         where,
         select: AGENT_TASK_SELECT,
-        orderBy: [{ dueAt: 'asc' }, { createdAt: 'desc' }],
+        orderBy: AgentTasksService.resolveOrderBy(query),
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
       }),

@@ -7,7 +7,8 @@ import { TokenService } from '../auth/token.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import type { CreateUserDto } from './dto/create-user.dto';
-import type { ListUsersQueryDto } from './dto/list-users-query.dto';
+import { UserSortField, type ListUsersQueryDto } from './dto/list-users-query.dto';
+import { SortOrder } from '../common/dto/pagination.dto';
 
 /**
  * jest's asymmetric matchers (`objectContaining`, `anything`, ...) are typed
@@ -175,6 +176,50 @@ describe('UsersService', () => {
       const result = await service.list(query({ pageSize: 20 }));
 
       expect(result.meta.totalPages).toBe(7);
+    });
+
+    it('builds the legacy [fullName asc, email asc] order plus the id tie-breaker with no sort', async () => {
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.count.mockResolvedValue(0);
+
+      await service.list(query());
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        containing({ orderBy: [{ fullName: 'asc' }, { email: 'asc' }, { id: 'asc' }] }),
+      );
+    });
+
+    it('orders by the requested column and direction when sort is supplied', async () => {
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.count.mockResolvedValue(0);
+
+      await service.list(query({ sort: UserSortField.Email, order: SortOrder.Desc }));
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        containing({ orderBy: [{ email: 'desc' }, { id: 'asc' }] }),
+      );
+    });
+
+    it('ignores order when sort is absent', async () => {
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.count.mockResolvedValue(0);
+
+      await service.list(query({ order: SortOrder.Desc }));
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        containing({ orderBy: [{ fullName: 'asc' }, { email: 'asc' }, { id: 'asc' }] }),
+      );
+    });
+
+    it('pins NULLs last when sorting by the nullable lastLoginAt column', async () => {
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.count.mockResolvedValue(0);
+
+      await service.list(query({ sort: UserSortField.LastLoginAt, order: SortOrder.Desc }));
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        containing({ orderBy: [{ lastLoginAt: { sort: 'desc', nulls: 'last' } }, { id: 'asc' }] }),
+      );
     });
 
     it('passes skip: 40 for page: 3, pageSize: 20', async () => {

@@ -213,6 +213,16 @@ const quickReplies: {
   { key: 'sms-ack', locale: 'ar', title: 'إشعار استلام SMS', body: 'تم استلام رسالتك وسيقوم أحد موظفي الدعم بالرد قريباً.', channel: 'SMS' },
 ];
 
+/** Development/testing accounts, one per persona, seeded only behind
+ *  SEED_DEV_USERS — Story 25 Product rules 8–11. Story 28's login picker reads
+ *  the same three emails from its own frontend-side list; keep them in step.
+ *  Passwords are never stored here: SEED_DEV_USER_PASSWORD supplies one. */
+const devTestUsers: { email: string; fullName: string; roleKey: string }[] = [
+  { email: 'dev.admin@crm.local', fullName: 'Dev System Administrator', roleKey: 'system-administrator' },
+  { email: 'dev.agent@crm.local', fullName: 'Dev Support Agent', roleKey: 'support-agent' },
+  { email: 'dev.customer@crm.local', fullName: 'Dev Customer', roleKey: 'customer' },
+];
+
 async function seedBootstrapAdmin(): Promise<void> {
   const email = (process.env.BOOTSTRAP_ADMIN_EMAIL ?? 'admin@crm.local').trim().toLowerCase();
   const fromEnv = process.env.BOOTSTRAP_ADMIN_PASSWORD;
@@ -252,6 +262,59 @@ async function seedBootstrapAdmin(): Promise<void> {
     update: {},
     create: { userId: user.id, roleId: adminRole.id },
   });
+}
+
+async function seedDevTestUsers(): Promise<void> {
+  if (process.env.SEED_DEV_USERS !== 'true') {
+    return;
+  }
+
+  // Product rule 8: the flag and a production NODE_ENV are a contradiction, and
+  // the safe reading of a contradiction is to refuse, not to guess.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'SEED_DEV_USERS=true is refused with NODE_ENV=production. These accounts have known passwords.',
+    );
+  }
+
+  // Product rule 9: no default. An account whose password ships in the
+  // repository is worse than no account.
+  const password = process.env.SEED_DEV_USER_PASSWORD;
+
+  if (!password) {
+    throw new Error('SEED_DEV_USERS=true requires SEED_DEV_USER_PASSWORD to be set.');
+  }
+
+  for (const persona of devTestUsers) {
+    const email = persona.email.trim().toLowerCase();
+    const existing = await prisma.user.findUnique({ where: { email } });
+
+    if (existing) {
+      // Product rule 11 — the same decision seedBootstrapAdmin made at line 224.
+      console.log(`Dev test user ${email} already exists; password left unchanged.`);
+    } else {
+      await prisma.user.create({
+        data: {
+          email,
+          fullName: persona.fullName,
+          passwordHash: await hashPassword(password),
+          // Product rule 10: the mustChangePassword banner would open every one
+          // of these sessions, and there is no screen to resolve it.
+          mustChangePassword: false,
+        },
+      });
+      console.log(`Dev test user created: ${email} (${persona.roleKey})`);
+    }
+
+    const role = await prisma.role.findUniqueOrThrow({ where: { key: persona.roleKey } });
+    const user = await prisma.user.findUniqueOrThrow({ where: { email } });
+
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: user.id, roleId: role.id } },
+      update: {},
+      create: { userId: user.id, roleId: role.id },
+    });
+  }
 }
 
 export async function main(): Promise<void> {
@@ -319,6 +382,7 @@ export async function main(): Promise<void> {
   }
 
   await seedBootstrapAdmin();
+  await seedDevTestUsers();
 
   const [settingCount, permissionCount, roleCount, userCount, quickReplyCount] = await Promise.all([
     prisma.appSetting.count(),
@@ -334,11 +398,17 @@ export async function main(): Promise<void> {
   );
 }
 
-main()
-  .catch((error: unknown) => {
-    console.error('Seed failed:', error);
-    process.exitCode = 1;
-  })
-  .finally(() => {
-    void prisma.$disconnect();
-  });
+// Guarded so importing `main` (as the e2e suite does) does not ALSO trigger
+// this self-invocation — two concurrent runs of main() race on every
+// check-then-create path (seedBootstrapAdmin, seedDevTestUsers) and can throw
+// a unique-constraint violation against each other.
+if (require.main === module) {
+  main()
+    .catch((error: unknown) => {
+      console.error('Seed failed:', error);
+      process.exitCode = 1;
+    })
+    .finally(() => {
+      void prisma.$disconnect();
+    });
+}

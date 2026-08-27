@@ -11,7 +11,7 @@ import { AuthService } from '../auth/auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { CreateCustomerDto } from './dto/create-customer.dto';
-import { ListCustomersQueryDto } from './dto/list-customers-query.dto';
+import { CustomerSortField, ListCustomersQueryDto } from './dto/list-customers-query.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { CustomerResponseDto, PaginatedCustomersDto } from './dto/customer-response.dto';
 
@@ -54,6 +54,39 @@ export class CustomersService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Whitelisted orderings for the customer list. Product rule 3: typed against
+   *  Prisma's own input type, so a column that does not exist is a compile error. */
+  private static readonly SORT_COLUMNS: Record<
+    CustomerSortField,
+    (direction: Prisma.SortOrder) => Prisma.CustomerOrderByWithRelationInput[]
+  > = {
+    [CustomerSortField.Name]: (direction) => [{ name: direction }],
+    [CustomerSortField.Type]: (direction) => [{ type: direction }],
+    // Nullable columns pin NULLs last in BOTH directions — Product rule 5.
+    [CustomerSortField.Email]: (direction) => [{ email: { sort: direction, nulls: 'last' } }],
+    [CustomerSortField.City]: (direction) => [{ city: { sort: direction, nulls: 'last' } }],
+    [CustomerSortField.Status]: (direction) => [{ status: direction }],
+    [CustomerSortField.CreatedAt]: (direction) => [{ createdAt: direction }],
+    [CustomerSortField.UpdatedAt]: (direction) => [{ updatedAt: direction }],
+  };
+
+  /** The pre-Story-25 ordering, reproduced exactly when no sort is requested. */
+  private static readonly SORT_FALLBACK: Prisma.CustomerOrderByWithRelationInput[] = [
+    { name: 'asc' },
+    { createdAt: 'desc' },
+  ];
+
+  private static resolveOrderBy(
+    query: ListCustomersQueryDto,
+  ): Prisma.CustomerOrderByWithRelationInput[] {
+    const columns = query.sort
+      ? CustomersService.SORT_COLUMNS[query.sort](query.order ?? 'asc')
+      : CustomersService.SORT_FALLBACK;
+
+    // Product rule 4: a unique trailing key, so skip/take is deterministic.
+    return [...columns, { id: 'asc' }];
+  }
+
   async list(query: ListCustomersQueryDto): Promise<PaginatedCustomersDto> {
     const where: Prisma.CustomerWhereInput = {};
 
@@ -87,7 +120,7 @@ export class CustomersService {
       this.prisma.customer.findMany({
         where,
         select: CUSTOMER_SELECT,
-        orderBy: [{ name: 'asc' }, { createdAt: 'desc' }],
+        orderBy: CustomersService.resolveOrderBy(query),
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
       }),

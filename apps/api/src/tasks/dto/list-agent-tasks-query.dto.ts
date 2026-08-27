@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { AgentTaskStatus } from '@prisma/client';
 import { IsBoolean, IsDateString, IsEnum, IsOptional, IsUUID } from 'class-validator';
-import { PaginationQueryDto } from '../../common/dto/pagination.dto';
+import { PaginationQueryDto, SortOrder } from '../../common/dto/pagination.dto';
 
 /** Which assignment slice of the task table to return. Unlike
  *  TicketScope.All, `AgentTaskScope.All` is gated on `tasks:manage`
@@ -9,6 +9,16 @@ import { PaginationQueryDto } from '../../common/dto/pagination.dto';
 export enum AgentTaskScope {
   Mine = 'mine',
   All = 'all',
+}
+
+/** Columns the agent task list may be ordered by. A closed enum, not a
+ *  string: Story 25 Product rule 2. Absent = the legacy [dueAt asc,
+ *  createdAt desc]. */
+export enum AgentTaskSortField {
+  Title = 'title',
+  Status = 'status',
+  DueAt = 'dueAt',
+  CreatedAt = 'createdAt',
 }
 
 export class ListAgentTasksQueryDto extends PaginationQueryDto {
@@ -57,4 +67,17 @@ export class ListAgentTasksQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsBoolean()
   overdueOnly?: boolean;
+
+  @ApiPropertyOptional({
+    enum: AgentTaskSortField,
+    description: 'Omit for the default dueAt-ascending order.',
+  })
+  @IsOptional()
+  @IsEnum(AgentTaskSortField)
+  sort?: AgentTaskSortField;
+
+  @ApiPropertyOptional({ enum: SortOrder, default: SortOrder.Asc })
+  @IsOptional()
+  @IsEnum(SortOrder)
+  order?: SortOrder;
 }

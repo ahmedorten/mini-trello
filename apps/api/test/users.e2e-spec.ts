@@ -461,4 +461,15 @@ describe('Users & Roles (e2e)', () => {
       expect(res.body.message).toContain('cannot be demoted');
     });
   });
+
+  describe('schema (Story 25)', () => {
+    it('has an index on full_name and last_login_at', async () => {
+      const indexes = await prisma.$queryRaw<{ indexname: string }[]>`
+        SELECT indexname FROM pg_indexes WHERE tablename = 'users'
+      `;
+      const names = indexes.map((row) => row.indexname);
+
+      expect(names).toEqual(expect.arrayContaining(['users_full_name_idx', 'users_last_login_at_idx']));
+    });
+  });
 });
