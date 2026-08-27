@@ -1,11 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  assignTicket,
+  createTicketInteraction,
   downloadTicketAttachment,
   listTickets,
+  listTicketInteractions,
   uploadTicketAttachment,
+  type CreateTicketInteractionPayload,
   type ListTicketsParams,
+  type Ticket,
   type TicketAttachment,
 } from './tickets';
+import type { CustomerInteraction } from './customers';
 import { apiClient } from './client';
 
 vi.mock('./client', () => ({
@@ -81,5 +87,69 @@ describe('tickets api', () => {
 
     clickSpy.mockRestore();
     vi.unstubAllGlobals();
+  });
+
+  const sampleInteraction: CustomerInteraction = {
+    id: 'i-1',
+    customerId: 'c-1',
+    channel: 'EMAIL',
+    direction: 'OUTBOUND',
+    subject: 'Response',
+    body: 'We logged your response.',
+    occurredAt: '2026-08-25T00:00:00.000Z',
+    createdBy: { id: 'u-1', fullName: 'Nour Hassan', email: 'nour@crm.local' },
+    createdAt: '2026-08-25T00:00:00.000Z',
+    ticketId: 't-1',
+    ticket: { id: 't-1', subject: 'Cannot log in' },
+  };
+
+  it('listTicketInteractions forwards its three params', async () => {
+    mockedApiClient.get.mockResolvedValue({ data: [sampleInteraction] });
+
+    await listTicketInteractions('t-1', { channel: 'EMAIL', direction: 'OUTBOUND', includeCustomerHistory: true });
+
+    expect(mockedApiClient.get).toHaveBeenCalledWith('/tickets/t-1/interactions', {
+      params: { channel: 'EMAIL', direction: 'OUTBOUND', includeCustomerHistory: true },
+    });
+  });
+
+  it('createTicketInteraction posts to /tickets/:id/interactions with no customerId in the payload', async () => {
+    mockedApiClient.post.mockResolvedValue({ data: sampleInteraction });
+    const payload: CreateTicketInteractionPayload = {
+      channel: 'EMAIL',
+      direction: 'OUTBOUND',
+      subject: 'Response',
+      occurredAt: '2026-08-25T00:00:00.000Z',
+    };
+
+    await createTicketInteraction('t-1', payload);
+
+    expect(mockedApiClient.post).toHaveBeenCalledWith('/tickets/t-1/interactions', payload);
+    const [, body] = mockedApiClient.post.mock.calls[0];
+    expect(body).not.toHaveProperty('customerId');
+  });
+
+  it('assignTicket patches /tickets/:id/assignment with { assignedAgentId }, including null', async () => {
+    const sampleTicket: Ticket = {
+      id: 't-1',
+      customer: { id: 'c-1', name: 'Orten Trading', email: 'contact@orten.example' },
+      subject: 'Cannot log in',
+      description: 'Details',
+      category: 'GENERAL',
+      priority: 'MEDIUM',
+      status: 'OPEN',
+      assignedAgent: null,
+      createdBy: null,
+      counts: { comments: 0, attachments: 0, history: 0 },
+      createdAt: '2026-08-25T00:00:00.000Z',
+      updatedAt: '2026-08-25T00:00:00.000Z',
+    };
+    mockedApiClient.patch.mockResolvedValue({ data: sampleTicket });
+
+    await assignTicket('t-1', 'agent-1');
+    expect(mockedApiClient.patch).toHaveBeenCalledWith('/tickets/t-1/assignment', { assignedAgentId: 'agent-1' });
+
+    await assignTicket('t-1', null);
+    expect(mockedApiClient.patch).toHaveBeenCalledWith('/tickets/t-1/assignment', { assignedAgentId: null });
   });
 });

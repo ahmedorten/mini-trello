@@ -4,15 +4,16 @@ import type { PaginationMeta } from './users';
 export type CustomerStatus = 'PROSPECT' | 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
 export type CustomerType = 'INDIVIDUAL' | 'COMPANY';
 export type InteractionChannel =
-  | 'PHONE' | 'EMAIL' | 'CHAT' | 'MEETING' | 'OTHER' | 'WHATSAPP' | 'SMS' | 'WEB_FORM';
+  | 'EMAIL' | 'WHATSAPP' | 'CHAT' | 'SMS' | 'WEB_FORM' | 'PHONE' | 'MEETING' | 'OTHER';
 export type InteractionDirection = 'INBOUND' | 'OUTBOUND';
 
 /** The values, in display order, for every picker in this feature. Keep in step
  *  with the Prisma enums in apps/api/prisma/schema.prisma. */
 export const CUSTOMER_STATUSES: CustomerStatus[] = ['PROSPECT', 'ACTIVE', 'INACTIVE', 'ARCHIVED'];
 export const CUSTOMER_TYPES: CustomerType[] = ['INDIVIDUAL', 'COMPANY'];
+/** Matches CHANNEL_ORDER in apps/api/src/customers/channel.registry.ts. */
 export const INTERACTION_CHANNELS: InteractionChannel[] = [
-  'PHONE', 'EMAIL', 'CHAT', 'MEETING', 'OTHER', 'WHATSAPP', 'SMS', 'WEB_FORM',
+  'EMAIL', 'WHATSAPP', 'CHAT', 'SMS', 'WEB_FORM', 'PHONE', 'MEETING', 'OTHER',
 ];
 
 /** Mirrors UserRefDto in apps/api/src/customers/dto/customer-response.dto.ts */
@@ -119,6 +120,13 @@ export interface CustomerAttachment {
   createdAt: string;
 }
 
+/** The ticket an interaction is attributed to. Mirrors InteractionTicketRefDto
+ *  — enough to render a link, nothing that duplicates TicketResponseDto. */
+export interface InteractionTicketRef {
+  id: string;
+  subject: string;
+}
+
 /** Mirrors InteractionResponseDto. */
 export interface CustomerInteraction {
   id: string;
@@ -130,15 +138,19 @@ export interface CustomerInteraction {
   occurredAt: string;
   createdBy: UserRef;
   createdAt: string;
+  ticketId: string | null;
+  ticket: InteractionTicketRef | null;
 }
 
-/** Mirrors CreateInteractionDto. */
+/** Mirrors CreateInteractionDto. `ticketId` must belong to this customer — a
+ *  mismatch is a 400. */
 export interface CreateInteractionPayload {
   channel: InteractionChannel;
   direction: InteractionDirection;
   subject: string;
   body?: string;
   occurredAt: string;
+  ticketId?: string;
 }
 
 export async function listCustomers(params: ListCustomersParams): Promise<PaginatedCustomers> {
@@ -251,8 +263,20 @@ export async function deleteAttachment(customerId: string, id: string): Promise<
   await apiClient.delete(`/customers/${customerId}/attachments/${id}`);
 }
 
-export async function listInteractions(customerId: string): Promise<CustomerInteraction[]> {
-  const response = await apiClient.get<CustomerInteraction[]>(`/customers/${customerId}/interactions`);
+export interface ListInteractionsParams {
+  channel?: InteractionChannel;
+  direction?: InteractionDirection;
+  ticketId?: string;
+}
+
+export async function listInteractions(
+  customerId: string,
+  params?: ListInteractionsParams,
+): Promise<CustomerInteraction[]> {
+  const url = `/customers/${customerId}/interactions`;
+  const response = params
+    ? await apiClient.get<CustomerInteraction[]>(url, { params })
+    : await apiClient.get<CustomerInteraction[]>(url);
 
   return response.data;
 }

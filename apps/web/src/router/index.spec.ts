@@ -46,6 +46,66 @@ describe('router', () => {
     expect(router.resolve('/forbidden').name).toBe('forbidden');
   });
 
+  it('resolves /workspace to the workspace route', () => {
+    expect(router.resolve('/workspace').name).toBe('workspace');
+  });
+
+  it('resolves /workspace/abc to the workspace-ticket route, with the id param', () => {
+    const resolved = router.resolve('/workspace/abc');
+    expect(resolved.name).toBe('workspace-ticket');
+    expect(resolved.params.id).toBe('abc');
+  });
+
+  it('resolves /tasks to the tasks route', () => {
+    expect(router.resolve('/tasks').name).toBe('tasks');
+  });
+
+  it('redirects to /forbidden for / without dashboard:read, and allows it with dashboard:read', async () => {
+    mockAuth({ isAuthenticated: true, permissions: [] });
+    await router.push('/');
+    expect(router.currentRoute.value.name).toBe('forbidden');
+
+    mockAuth({ isAuthenticated: true, permissions: ['dashboard:read'] });
+    await router.push('/');
+    expect(router.currentRoute.value.name).toBe('dashboard');
+  });
+
+  it('requires tickets:read for /workspace and /workspace/:id', async () => {
+    mockAuth({ isAuthenticated: true, permissions: [] });
+    await router.push('/workspace');
+    expect(router.currentRoute.value.name).toBe('forbidden');
+    await router.push('/workspace/abc');
+    expect(router.currentRoute.value.name).toBe('forbidden');
+
+    mockAuth({ isAuthenticated: true, permissions: ['tickets:read'] });
+    await router.push('/workspace');
+    expect(router.currentRoute.value.name).toBe('workspace');
+    await router.push('/workspace/abc');
+    expect(router.currentRoute.value.name).toBe('workspace-ticket');
+  });
+
+  it('requires tasks:read for /tasks', async () => {
+    mockAuth({ isAuthenticated: true, permissions: [] });
+    await router.push('/tasks');
+    expect(router.currentRoute.value.name).toBe('forbidden');
+
+    mockAuth({ isAuthenticated: true, permissions: ['tasks:read'] });
+    await router.push('/tasks');
+    expect(router.currentRoute.value.name).toBe('tasks');
+  });
+
+  it('redirects a signed-out visitor to login for /workspace and /tasks', async () => {
+    mockAuth({ isAuthenticated: false });
+
+    await router.push('/workspace');
+    expect(router.currentRoute.value.name).toBe('login');
+    expect(router.currentRoute.value.query.redirect).toBe('/workspace');
+
+    await router.push('/tasks');
+    expect(router.currentRoute.value.name).toBe('login');
+    expect(router.currentRoute.value.query.redirect).toBe('/tasks');
+  });
+
   it('resolves /customers to the customers route', () => {
     expect(router.resolve('/customers').name).toBe('customers');
   });
@@ -182,7 +242,7 @@ describe('router', () => {
   });
 
   it('redirects a signed-in visitor away from /login to the dashboard', async () => {
-    mockAuth({ isAuthenticated: true });
+    mockAuth({ isAuthenticated: true, permissions: ['dashboard:read'] });
 
     await router.push('/login');
 

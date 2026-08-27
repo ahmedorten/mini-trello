@@ -123,6 +123,8 @@ const sampleInteraction: CustomerInteraction = {
   occurredAt: '2026-08-25T00:00:00.000Z',
   createdBy: { id: 'u-1', fullName: 'Nour Hassan', email: 'nour@crm.local' },
   createdAt: '2026-08-25T00:00:00.000Z',
+  ticketId: null,
+  ticket: null,
 };
 
 const sampleAgent: UserSummary = {

@@ -1,6 +1,12 @@
 import { apiClient } from './client';
 import type { PaginationMeta } from './users';
-import type { UserRef } from './customers';
+import type {
+  CreateInteractionPayload,
+  CustomerInteraction,
+  InteractionChannel,
+  InteractionDirection,
+  UserRef,
+} from './customers';
 
 export type TicketCategory =
   | 'GENERAL' | 'TECHNICAL' | 'BILLING' | 'ACCOUNT' | 'FEATURE_REQUEST' | 'BUG_REPORT' | 'OTHER';
@@ -43,6 +49,9 @@ export interface PaginatedTickets {
   meta: PaginationMeta;
 }
 
+/** Mirrors TicketScope in apps/api/src/tickets/dto/list-tickets-query.dto.ts */
+export type TicketScope = 'mine' | 'unassigned' | 'workable' | 'all';
+
 export interface ListTicketsParams {
   page?: number;
   pageSize?: number;
@@ -52,6 +61,7 @@ export interface ListTicketsParams {
   status?: TicketStatus;
   assignedAgentId?: string;
   customerId?: string;
+  scope?: TicketScope;
 }
 
 /** Mirrors CreateTicketDto. */
@@ -202,6 +212,47 @@ export async function deleteTicketAttachment(ticketId: string, id: string): Prom
 
 export async function listTicketHistory(ticketId: string): Promise<TicketHistoryEntry[]> {
   const response = await apiClient.get<TicketHistoryEntry[]>(`/tickets/${ticketId}/history`);
+
+  return response.data;
+}
+
+export interface ListTicketInteractionsParams {
+  channel?: InteractionChannel;
+  direction?: InteractionDirection;
+  includeCustomerHistory?: boolean;
+}
+
+/** The same fields as CreateInteractionPayload minus `ticketId` — this route
+ *  already carries the ticket in its URL, and the customer is derived
+ *  server-side. Sending either would be rejected. */
+export type CreateTicketInteractionPayload = Omit<CreateInteractionPayload, 'ticketId'>;
+
+export async function listTicketInteractions(
+  ticketId: string,
+  params: ListTicketInteractionsParams = {},
+): Promise<CustomerInteraction[]> {
+  const response = await apiClient.get<CustomerInteraction[]>(
+    `/tickets/${ticketId}/interactions`,
+    { params },
+  );
+
+  return response.data;
+}
+
+export async function createTicketInteraction(
+  ticketId: string,
+  payload: CreateTicketInteractionPayload,
+): Promise<CustomerInteraction> {
+  const response = await apiClient.post<CustomerInteraction>(
+    `/tickets/${ticketId}/interactions`,
+    payload,
+  );
+
+  return response.data;
+}
+
+export async function assignTicket(id: string, assignedAgentId: string | null): Promise<Ticket> {
+  const response = await apiClient.patch<Ticket>(`/tickets/${id}/assignment`, { assignedAgentId });
 
   return response.data;
 }

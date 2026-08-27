@@ -19,6 +19,8 @@ const routes = [
   { path: '/users', name: 'users', component: { template: '<div>Users</div>' } },
   { path: '/customers', name: 'customers', component: { template: '<div>Customers</div>' } },
   { path: '/tickets', name: 'tickets', component: { template: '<div>Tickets</div>' } },
+  { path: '/workspace', name: 'workspace', component: { template: '<div>Workspace</div>' } },
+  { path: '/tasks', name: 'tasks', component: { template: '<div>Tasks</div>' } },
   { path: '/login', name: 'login', component: { template: '<div>Login</div>' } },
 ];
 
@@ -147,6 +149,42 @@ describe('AppLayout', () => {
     const nav = wrapper.find('nav[aria-label="Main navigation"]');
     const links = nav.findAll('a');
     expect(links.map((link) => link.text())).not.toContain('Tickets');
+  });
+
+  it('renders the Workspace link when signed in with tickets:read', async () => {
+    mockAuthStore({ isAuthenticated: true, permissions: ['tickets:read'] });
+    const { wrapper } = await mountLayout();
+
+    const nav = wrapper.find('nav[aria-label="Main navigation"]');
+    const links = nav.findAll('a');
+    expect(links.map((link) => link.text())).toContain('Workspace');
+  });
+
+  it('omits the Workspace link when signed in without tickets:read', async () => {
+    mockAuthStore({ isAuthenticated: true, permissions: [] });
+    const { wrapper } = await mountLayout();
+
+    const nav = wrapper.find('nav[aria-label="Main navigation"]');
+    const links = nav.findAll('a');
+    expect(links.map((link) => link.text())).not.toContain('Workspace');
+  });
+
+  it('renders the Tasks link when signed in with tasks:read', async () => {
+    mockAuthStore({ isAuthenticated: true, permissions: ['tasks:read'] });
+    const { wrapper } = await mountLayout();
+
+    const nav = wrapper.find('nav[aria-label="Main navigation"]');
+    const links = nav.findAll('a');
+    expect(links.map((link) => link.text())).toContain('Tasks');
+  });
+
+  it('omits the Tasks link when signed in without tasks:read', async () => {
+    mockAuthStore({ isAuthenticated: true, permissions: [] });
+    const { wrapper } = await mountLayout();
+
+    const nav = wrapper.find('nav[aria-label="Main navigation"]');
+    const links = nav.findAll('a');
+    expect(links.map((link) => link.text())).not.toContain('Tasks');
   });
 
   it('signs out via auth.logout and redirects to login', async () => {

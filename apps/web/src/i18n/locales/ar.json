@@ -24,6 +24,7 @@
     "unassigned": "غير مُسند",
     "all": "الكل",
     "backToDashboard": "العودة إلى لوحة التحكم",
+    "showingOfTotal": "عرض {shown} من {total}",
     "pagination": {
       "summary": "صفحة {page} من {totalPages} — {total} إجمالاً"
     },
@@ -208,6 +209,7 @@
     "tab": {
       "comments": "التعليقات",
       "attachments": "المرفقات",
+      "communication": "التواصل",
       "history": "السجل"
     },
     "history": {
@@ -335,8 +337,109 @@
     "lastChecked": "آخر فحص {time}"
   },
   "dashboard": {
-    "title": "لوحة التحكم",
-    "intro": "يوفر هذا الإصدار التأسيسي هيكل التطبيق — التوجيه والتخطيط وعميل واجهة برمجة مدعوم بـ Pinia — دون شاشات خاصة بنطاق إدارة العملاء بعد.",
-    "systemStatusLink": "تفضل بزيارة صفحة {link} لمشاهدة حالة واجهة البرمجة وقاعدة البيانات، والتي يتم جلبها مباشرةً عبر عميل واجهة البرمجة."
+    "greeting": "مرحباً بعودتك، {name}",
+    "refresh": "تحديث",
+    "generatedAt": "آخر تحديث {time}",
+    "scopeLabel": "النطاق",
+    "scope": {
+      "workable": "القابلة للعمل",
+      "mine": "الخاصة بي",
+      "unassigned": "غير مُسندة",
+      "all": "الكل"
+    },
+    "stat": {
+      "assigned": "المُسندة",
+      "open": "مفتوحة",
+      "pending": "معلّقة",
+      "overdue": "متأخرة",
+      "unassigned": "غير مُسندة",
+      "resolvedLast7Days": "تم الحل (٧ أيام)"
+    },
+    "insight": {
+      "status": "حسب الحالة",
+      "priority": "حسب الأولوية",
+      "category": "حسب الفئة"
+    },
+    "list": {
+      "focus": "تذاكر ذات أولوية",
+      "overdue": "تذاكر متأخرة",
+      "unassigned": "تذاكر غير مُسندة",
+      "tasksDue": "مهام مستحقة"
+    },
+    "empty": {
+      "focus": "لا توجد تذاكر تحتاج إلى اهتمامك الآن.",
+      "overdue": "لا يوجد شيء متأخر.",
+      "unassigned": "لا توجد تذاكر غير مُسندة.",
+      "tasksDue": "لا توجد مهام مستحقة قريباً."
+    }
+  },
+  "workspace": {
+    "queue": "قائمة الانتظار",
+    "selectPrompt": "اختر تذكرة من قائمة الانتظار لعرضها هنا.",
+    "tab": {
+      "queue": "قائمة الانتظار",
+      "ticket": "التذكرة",
+      "context": "السياق",
+      "notes": "ملاحظات داخلية",
+      "communication": "التواصل",
+      "files": "الملفات",
+      "history": "السجل"
+    }
+  },
+  "communication": {
+    "title": "التواصل",
+    "respond": "الرد",
+    "send": "إرسال",
+    "includeCustomerHistory": "تضمين تذاكر العميل الأخرى",
+    "otherTicket": "من: {subject}",
+    "noProviderNotice": "تسجيل هذا الرد يحفظه في سجل التفاعلات. لن تُرسل أي رسالة إلى العميل.",
+    "empty": "لا يوجد تواصل مسجل بعد.",
+    "filterChannel": "القناة",
+    "filterDirection": "الاتجاه"
+  },
+  "task": {
+    "title": "العنوان",
+    "new": "مهمة جديدة",
+    "edit": "تعديل المهمة",
+    "complete": "إنجاز",
+    "reopen": "إعادة فتح",
+    "due": "الاستحقاق",
+    "remind": "التذكير",
+    "overdue": "متأخرة",
+    "assignee": "المسؤول",
+    "linkedTicket": "التذكرة المرتبطة",
+    "linkedCustomer": "العميل المرتبط",
+    "empty": "لا توجد مهام بعد.",
+    "confirmDelete": "هل تريد حذف هذه المهمة؟",
+    "status": {
+      "OPEN": "مفتوحة",
+      "IN_PROGRESS": "قيد التنفيذ",
+      "DONE": "منجزة",
+      "CANCELLED": "ملغاة"
+    },
+    "scope": {
+      "mine": "مهامي",
+      "all": "جميع المهام"
+    },
+    "overdueOnly": "المتأخرة فقط"
+  },
+  "quickReply": {
+    "title": "الردود الجاهزة",
+    "insert": "إدراج",
+    "copy": "نسخ",
+    "empty": "لا توجد ردود جاهزة متاحة.",
+    "noAccess": "لا تملك صلاحية الوصول إلى الردود الجاهزة."
+  },
+  "assign": {
+    "claim": "تولّي",
+    "release": "إطلاق",
+    "reassign": "إعادة الإسناد",
+    "unassign": "إلغاء الإسناد",
+    "assignTo": "إسناد إلى"
+  },
+  "customerSummary": {
+    "title": "العميل",
+    "noAccess": "لا تملك صلاحية الوصول إلى بيانات هذا العميل.",
+    "viewProfile": "عرض الملف الشخصي"
   }
 }

@@ -36,8 +36,10 @@ const navGroups = computed<NavGroup[]>(() => {
       labelKey: 'nav.group.work',
       items: [
         { to: '/', icon: 'dashboard', labelKey: 'nav.dashboard', visible: true },
+        { to: '/workspace', icon: 'workspace', labelKey: 'nav.workspace', visible: auth.can('tickets:read') },
         // Preserves the exact auth.can('tickets:read') gate from the original nav.
         { to: '/tickets', icon: 'tickets', labelKey: 'nav.tickets', visible: auth.can('tickets:read') },
+        { to: '/tasks', icon: 'tasks', labelKey: 'nav.tasks', visible: auth.can('tasks:read') },
       ],
     },
     {

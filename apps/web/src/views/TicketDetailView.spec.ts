@@ -6,6 +6,8 @@ import { createPinia } from 'pinia';
 import TicketDetailView from './TicketDetailView.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useTicketsStore } from '@/stores/tickets';
+import CommunicationTimeline from '@/components/CommunicationTimeline.vue';
+import ReassignControl from '@/components/ReassignControl.vue';
 import type { Ticket, TicketComment } from '@/api/tickets';
 
 vi.mock('@/stores/auth', () => ({ useAuthStore: vi.fn() }));
@@ -86,7 +88,15 @@ async function mountView() {
   router.push('/tickets/t-1');
   await router.isReady();
 
-  const wrapper = mount(TicketDetailView, { global: { plugins: [router, createPinia()] } });
+  const wrapper = mount(TicketDetailView, {
+    global: {
+      plugins: [router, createPinia()],
+      // CommunicationTimeline and ReassignControl get their own dedicated specs;
+      // stubbing them here keeps this view's tests from also exercising the
+      // dashboard store and the live interaction/assignment API calls.
+      stubs: { CommunicationTimeline: true, ReassignControl: true },
+    },
+  });
   await wrapper.vm.$nextTick();
 
   return wrapper;
@@ -115,7 +125,7 @@ describe('TicketDetailView', () => {
     expect(wrapper.find('.ticket-detail__tabs').exists()).toBe(false);
   });
 
-  it('switches tabs across comments, attachments, and history so only the active panel is in the DOM', async () => {
+  it('switches tabs across comments, attachments, communication, and history so only the active panel is in the DOM', async () => {
     mockAuth(['tickets:read']);
     mockTickets();
     const wrapper = await mountView();
@@ -128,8 +138,28 @@ describe('TicketDetailView', () => {
     expect(wrapper.text()).not.toContain('No comments yet.');
 
     await tabs[2].trigger('click');
-    expect(wrapper.text()).toContain('No history yet.');
+    expect(wrapper.findComponent(CommunicationTimeline).exists()).toBe(true);
     expect(wrapper.text()).not.toContain('No attachments yet.');
+
+    await tabs[3].trigger('click');
+    expect(wrapper.text()).toContain('No history yet.');
+  });
+
+  it('has a fourth Communication tab between Files and History', async () => {
+    mockAuth(['tickets:read']);
+    mockTickets();
+    const wrapper = await mountView();
+
+    const tabs = wrapper.findAll('[role="tab"]');
+    expect(tabs.map((tab) => tab.text())).toEqual(['Comments (0)', 'Attachments (0)', 'Communication', 'History']);
+  });
+
+  it('renders ReassignControl beside the status select', async () => {
+    mockAuth(['tickets:read', 'tickets:write']);
+    mockTickets();
+    const wrapper = await mountView();
+
+    expect(wrapper.findComponent(ReassignControl).exists()).toBe(true);
   });
 
   it('omits the comment form without ticket-comments:write', async () => {
@@ -255,7 +285,7 @@ describe('TicketDetailView', () => {
     const wrapper = await mountView();
 
     const tabs = wrapper.findAll('[role="tab"]');
-    await tabs[2].trigger('click');
+    await tabs[3].trigger('click');
 
     expect(wrapper.find('form').exists()).toBe(false);
   });
@@ -288,7 +318,7 @@ describe('TicketDetailView', () => {
     const wrapper = await mountView();
 
     const tabs = wrapper.findAll('[role="tab"]');
-    await tabs[2].trigger('click');
+    await tabs[3].trigger('click');
 
     const entries = wrapper.findAll('.ticket-detail__history-entry');
     expect(entries[0].text()).toContain('Nour Hassan');

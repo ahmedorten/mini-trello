@@ -14,6 +14,8 @@ import { formatBytes } from '@/utils/format';
 import AppStateBlock from '@/components/AppStateBlock.vue';
 import AppBadge from '@/components/AppBadge.vue';
 import AppTabs from '@/components/AppTabs.vue';
+import CommunicationTimeline from '@/components/CommunicationTimeline.vue';
+import ReassignControl from '@/components/ReassignControl.vue';
 import type { AppTab } from '@/components/tabs';
 
 const route = useRoute();
@@ -33,11 +35,12 @@ async function changeStatus(event: Event): Promise<void> {
 
 // --- tabs ------------------------------------------------------------------
 
-const activeTab = ref<'comments' | 'attachments' | 'history'>('comments');
+const activeTab = ref<'comments' | 'attachments' | 'communication' | 'history'>('comments');
 
 const tabs = computed<AppTab[]>(() => [
   { key: 'comments', labelKey: 'ticket.tab.comments', count: tickets.comments.length },
   { key: 'attachments', labelKey: 'ticket.tab.attachments', count: tickets.attachments.length },
+  { key: 'communication', labelKey: 'ticket.tab.communication' },
   { key: 'history', labelKey: 'ticket.tab.history' },
 ]);
 
@@ -187,6 +190,8 @@ onUnmounted(() => {
             </option>
           </select>
 
+          <ReassignControl :ticket="tickets.current" />
+
           <RouterLink v-if="auth.can('tickets:write')" :to="`/tickets/${tickets.current.id}/edit`">
             {{ t('common.edit') }}
           </RouterLink>
@@ -294,6 +299,10 @@ onUnmounted(() => {
             </div>
           </li>
         </ul>
+      </div>
+
+      <div v-else-if="activeTab === 'communication'" class="ticket-detail__panel">
+        <CommunicationTimeline :ticket-id="tickets.current.id" :customer-id="tickets.current.customer.id" />
       </div>
 
       <div v-else class="ticket-detail__panel">

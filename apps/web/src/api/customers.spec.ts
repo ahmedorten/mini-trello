@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   downloadAttachment,
+  INTERACTION_CHANNELS,
   listCustomers,
+  listInteractions,
   uploadAttachment,
   type CustomerAttachment,
   type ListCustomersParams,
@@ -81,5 +83,30 @@ describe('customers api', () => {
 
     clickSpy.mockRestore();
     vi.unstubAllGlobals();
+  });
+
+  it('INTERACTION_CHANNELS has eight entries including WHATSAPP, SMS, WEB_FORM, in CHANNEL_ORDER order', () => {
+    expect(INTERACTION_CHANNELS).toHaveLength(8);
+    expect(INTERACTION_CHANNELS).toEqual([
+      'EMAIL', 'WHATSAPP', 'CHAT', 'SMS', 'WEB_FORM', 'PHONE', 'MEETING', 'OTHER',
+    ]);
+  });
+
+  it('listInteractions sends no params when called with no argument (Story-11 backward compat)', async () => {
+    mockedApiClient.get.mockResolvedValue({ data: [] });
+
+    await listInteractions('c-1');
+
+    expect(mockedApiClient.get).toHaveBeenCalledWith('/customers/c-1/interactions');
+  });
+
+  it('listInteractions forwards an optional params object', async () => {
+    mockedApiClient.get.mockResolvedValue({ data: [] });
+
+    await listInteractions('c-1', { channel: 'EMAIL', direction: 'OUTBOUND', ticketId: 't-1' });
+
+    expect(mockedApiClient.get).toHaveBeenCalledWith('/customers/c-1/interactions', {
+      params: { channel: 'EMAIL', direction: 'OUTBOUND', ticketId: 't-1' },
+    });
   });
 });

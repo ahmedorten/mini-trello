@@ -16,8 +16,8 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'dashboard',
-    component: () => import('@/views/DashboardView.vue'),
-    meta: { titleKey: 'nav.dashboard' },
+    component: () => import('@/views/AgentDashboardView.vue'),
+    meta: { titleKey: 'nav.dashboard', permissions: ['dashboard:read'] },
   },
   {
     path: '/system-status',
@@ -84,6 +84,24 @@ const routes: RouteRecordRaw[] = [
     name: 'ticket-edit',
     component: () => import('@/views/TicketFormView.vue'),
     meta: { titleKey: 'route.title.editTicket', permissions: ['tickets:write'] },
+  },
+  {
+    path: '/workspace',
+    name: 'workspace',
+    component: () => import('@/views/AgentWorkspaceView.vue'),
+    meta: { titleKey: 'nav.workspace', permissions: ['tickets:read'] },
+  },
+  {
+    path: '/workspace/:id',
+    name: 'workspace-ticket',
+    component: () => import('@/views/AgentWorkspaceView.vue'),
+    meta: { titleKey: 'nav.workspace', permissions: ['tickets:read'] },
+  },
+  {
+    path: '/tasks',
+    name: 'tasks',
+    component: () => import('@/views/TasksView.vue'),
+    meta: { titleKey: 'nav.tasks', permissions: ['tasks:read'] },
   },
   {
     path: '/forbidden',

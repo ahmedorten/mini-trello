@@ -24,6 +24,7 @@
     "unassigned": "Unassigned",
     "all": "All",
     "backToDashboard": "Back to the dashboard",
+    "showingOfTotal": "Showing {shown} of {total}",
     "pagination": {
       "summary": "Page {page} of {totalPages} — {total} total"
     },
@@ -208,6 +209,7 @@
     "tab": {
       "comments": "Comments",
       "attachments": "Attachments",
+      "communication": "Communication",
       "history": "History"
     },
     "history": {
@@ -335,8 +337,109 @@
     "lastChecked": "Last checked {time}"
   },
   "dashboard": {
-    "title": "Dashboard",
-    "intro": "This bootstrap delivers the application shell — routing, layout, and a Pinia-backed API client — with no CRM domain screens yet.",
-    "systemStatusLink": "Visit the {link} page to see the API and database health, fetched live through the API client."
+    "greeting": "Welcome back, {name}",
+    "refresh": "Refresh",
+    "generatedAt": "Updated {time}",
+    "scopeLabel": "Scope",
+    "scope": {
+      "workable": "Workable",
+      "mine": "Mine",
+      "unassigned": "Unassigned",
+      "all": "All"
+    },
+    "stat": {
+      "assigned": "Assigned",
+      "open": "Open",
+      "pending": "Pending",
+      "overdue": "Overdue",
+      "unassigned": "Unassigned",
+      "resolvedLast7Days": "Resolved (7 days)"
+    },
+    "insight": {
+      "status": "By status",
+      "priority": "By priority",
+      "category": "By category"
+    },
+    "list": {
+      "focus": "Focus tickets",
+      "overdue": "Overdue tickets",
+      "unassigned": "Unassigned tickets",
+      "tasksDue": "Tasks due"
+    },
+    "empty": {
+      "focus": "No tickets need your attention right now.",
+      "overdue": "Nothing overdue.",
+      "unassigned": "No unassigned tickets.",
+      "tasksDue": "No tasks due soon."
+    }
+  },
+  "workspace": {
+    "queue": "Queue",
+    "selectPrompt": "Select a ticket from the queue to see it here.",
+    "tab": {
+      "queue": "Queue",
+      "ticket": "Ticket",
+      "context": "Context",
+      "notes": "Internal notes",
+      "communication": "Communication",
+      "files": "Files",
+      "history": "History"
+    }
+  },
+  "communication": {
+    "title": "Communication",
+    "respond": "Respond",
+    "send": "Send",
+    "includeCustomerHistory": "Include this customer's other tickets",
+    "otherTicket": "From: {subject}",
+    "noProviderNotice": "Recording this response logs it in the interaction history. No message is sent to the customer.",
+    "empty": "No communication logged yet.",
+    "filterChannel": "Channel",
+    "filterDirection": "Direction"
+  },
+  "task": {
+    "title": "Title",
+    "new": "New task",
+    "edit": "Edit task",
+    "complete": "Complete",
+    "reopen": "Reopen",
+    "due": "Due",
+    "remind": "Remind",
+    "overdue": "Overdue",
+    "assignee": "Assignee",
+    "linkedTicket": "Linked ticket",
+    "linkedCustomer": "Linked customer",
+    "empty": "No tasks yet.",
+    "confirmDelete": "Delete this task?",
+    "status": {
+      "OPEN": "Open",
+      "IN_PROGRESS": "In progress",
+      "DONE": "Done",
+      "CANCELLED": "Cancelled"
+    },
+    "scope": {
+      "mine": "My tasks",
+      "all": "All tasks"
+    },
+    "overdueOnly": "Overdue only"
+  },
+  "quickReply": {
+    "title": "Quick replies",
+    "insert": "Insert",
+    "copy": "Copy",
+    "empty": "No quick replies available.",
+    "noAccess": "You do not have access to quick replies."
+  },
+  "assign": {
+    "claim": "Claim",
+    "release": "Release",
+    "reassign": "Reassign",
+    "unassign": "Unassign",
+    "assignTo": "Assign to"
+  },
+  "customerSummary": {
+    "title": "Customer",
+    "noAccess": "You do not have access to this customer's details.",
+    "viewProfile": "View profile"
   }
 }
