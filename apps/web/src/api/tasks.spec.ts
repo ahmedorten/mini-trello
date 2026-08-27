@@ -57,6 +57,18 @@ describe('tasks api', () => {
     expect(mockedApiClient.get).toHaveBeenCalledWith('/tasks', { params });
   });
 
+  it('listTasks puts sort and order on the query string', async () => {
+    mockedApiClient.get.mockResolvedValue({
+      data: { items: [], meta: { page: 1, pageSize: 20, total: 0, totalPages: 0 } },
+    });
+
+    await listTasks({ sort: 'title', order: 'asc' });
+
+    expect(mockedApiClient.get).toHaveBeenCalledWith('/tasks', {
+      params: { sort: 'title', order: 'asc' },
+    });
+  });
+
   it('getTask requests /tasks/:id', async () => {
     mockedApiClient.get.mockResolvedValue({ data: sampleTask });
 

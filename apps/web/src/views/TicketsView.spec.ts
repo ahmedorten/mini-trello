@@ -55,6 +55,7 @@ function mockTickets(overrides: {
     error: overrides.error ?? null,
     filters: {
       page: 1, pageSize: 20, search: '', category: '', priority: '', status: '', assignedAgentId: '',
+      sort: '', order: 'desc',
     },
     load: vi.fn(async () => {}),
     setSearch: vi.fn(),
@@ -63,6 +64,8 @@ function mockTickets(overrides: {
     setStatusFilter: vi.fn(),
     setAssignedAgentFilter: vi.fn(),
     setPage: vi.fn(),
+    setSort: vi.fn(),
+    setPageSize: vi.fn(),
   });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -172,7 +175,7 @@ describe('TicketsView', () => {
     });
 
     const wrapper = await mountWithRouter();
-    const selects = wrapper.findAll('.tickets__filters select');
+    const selects = wrapper.findAll('.filter-bar select');
 
     await selects[0].setValue('TECHNICAL');
     expect(store.setCategoryFilter).toHaveBeenCalledWith('TECHNICAL');
@@ -190,7 +193,7 @@ describe('TicketsView', () => {
     const store = mockTickets({ items: [makeTicket()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
 
     const wrapper = await mountWithRouter();
-    await wrapper.find('.tickets__filters input[type="search"]').setValue('login');
+    await wrapper.find('.filter-bar input[type="search"]').setValue('login');
 
     vi.advanceTimersByTime(300);
     await Promise.resolve();
@@ -230,5 +233,39 @@ describe('TicketsView', () => {
     expect(row.text()).not.toContain('IN_PROGRESS');
 
     localeStore.setLocale('en');
+  });
+
+  it('renders a sortable header for each API-sortable column and a plain th for the rest', async () => {
+    mockAuth(['tickets:read']);
+    mockTickets({ items: [makeTicket()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
+
+    const wrapper = await mountWithRouter();
+    const sortableHeaders = wrapper.findAll('th[aria-sort]');
+    const plainHeaders = wrapper.findAll('th:not([aria-sort])');
+
+    expect(sortableHeaders).toHaveLength(4);
+    expect(plainHeaders.map((h) => h.text())).toEqual(
+      expect.arrayContaining(['Customer', 'Assigned agent', 'Comments/Files', 'Actions']),
+    );
+  });
+
+  it('calls store.setSort with the API field name when a header button is clicked', async () => {
+    mockAuth(['tickets:read']);
+    const store = mockTickets({ items: [makeTicket()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
+
+    const wrapper = await mountWithRouter();
+    await wrapper.find('th[aria-sort] button').trigger('click');
+
+    expect(store.setSort).toHaveBeenCalledWith('subject');
+  });
+
+  it('calls store.setPageSize when the page-size select changes', async () => {
+    mockAuth(['tickets:read']);
+    const store = mockTickets({ items: [makeTicket()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
+
+    const wrapper = await mountWithRouter();
+    await wrapper.find('.app-pagination__page-size select').setValue('50');
+
+    expect(store.setPageSize).toHaveBeenCalledWith(50);
   });
 });

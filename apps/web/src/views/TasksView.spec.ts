@@ -52,12 +52,14 @@ function mockTasks(overrides: {
     meta: overrides.meta ?? null,
     isLoading: overrides.isLoading ?? false,
     error: overrides.error ?? null,
-    filters: { page: 1, pageSize: 20, scope: 'mine', status: '', overdueOnly: false },
+    filters: { page: 1, pageSize: 20, scope: 'mine', status: '', overdueOnly: false, sort: '', order: 'asc' },
     load: vi.fn(async () => {}),
     setScopeFilter: vi.fn(),
     setStatusFilter: vi.fn(),
     setOverdueOnly: vi.fn(),
     setPage: vi.fn(),
+    setSort: vi.fn(),
+    setPageSize: vi.fn(),
     setStatus: vi.fn(async () => true),
     remove: vi.fn(async () => true),
   });
@@ -188,5 +190,39 @@ describe('TasksView', () => {
 
     await withWrite.find('button').trigger('click');
     expect(withWrite.findComponent({ name: 'AppModal' }).props('open')).toBe(true);
+  });
+
+  it('renders a sortable header for each API-sortable column and a plain th for the rest', async () => {
+    mockAuth(['tasks:read']);
+    mockTasks({ items: [makeTask()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
+
+    const wrapper = await mountView();
+    const sortableHeaders = wrapper.findAll('th[aria-sort]');
+    const plainHeaders = wrapper.findAll('th:not([aria-sort])');
+
+    expect(sortableHeaders).toHaveLength(3);
+    expect(plainHeaders.map((h) => h.text())).toEqual(
+      expect.arrayContaining(['Linked ticket', 'Linked customer', 'Assignee', 'Actions']),
+    );
+  });
+
+  it('calls store.setSort with the API field name when a header button is clicked', async () => {
+    mockAuth(['tasks:read']);
+    const store = mockTasks({ items: [makeTask()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
+
+    const wrapper = await mountView();
+    await wrapper.find('th[aria-sort] button').trigger('click');
+
+    expect(store.setSort).toHaveBeenCalledWith('title');
+  });
+
+  it('calls store.setPageSize when the page-size select changes', async () => {
+    mockAuth(['tasks:read']);
+    const store = mockTasks({ items: [makeTask()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
+
+    const wrapper = await mountView();
+    await wrapper.find('.app-pagination__page-size select').setValue('50');
+
+    expect(store.setPageSize).toHaveBeenCalledWith(50);
   });
 });

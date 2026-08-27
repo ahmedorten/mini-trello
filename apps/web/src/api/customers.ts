@@ -55,6 +55,18 @@ export interface PaginatedCustomers {
   meta: PaginationMeta;
 }
 
+/** Mirrors CustomerSortField in
+ *  apps/api/src/customers/dto/list-customers-query.dto.ts. The API 400s on any
+ *  other value, so this union is the whitelist on this side too. */
+export type CustomerSortField =
+  | 'name'
+  | 'type'
+  | 'email'
+  | 'city'
+  | 'status'
+  | 'createdAt'
+  | 'updatedAt';
+
 export interface ListCustomersParams {
   page?: number;
   pageSize?: number;
@@ -63,6 +75,8 @@ export interface ListCustomersParams {
   type?: CustomerType;
   assignedAgentId?: string;
   city?: string;
+  sort?: CustomerSortField;
+  order?: 'asc' | 'desc';
 }
 
 /** Mirrors CreateCustomerDto. */

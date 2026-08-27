@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   downloadAttachment,
   INTERACTION_CHANNELS,
+  listCustomerRefs,
   listCustomers,
   listInteractions,
   uploadAttachment,
@@ -46,6 +47,28 @@ describe('customers api', () => {
     await listCustomers(params);
 
     expect(mockedApiClient.get).toHaveBeenCalledWith('/customers', { params });
+  });
+
+  it('listCustomers puts sort and order on the query string', async () => {
+    mockedApiClient.get.mockResolvedValue({
+      data: { items: [], meta: { page: 1, pageSize: 20, total: 0, totalPages: 0 } },
+    });
+
+    await listCustomers({ sort: 'name', order: 'desc' });
+
+    expect(mockedApiClient.get).toHaveBeenCalledWith('/customers', {
+      params: { sort: 'name', order: 'desc' },
+    });
+  });
+
+  it('listCustomerRefs still sends only pageSize=100', async () => {
+    mockedApiClient.get.mockResolvedValue({
+      data: { items: [], meta: { page: 1, pageSize: 100, total: 0, totalPages: 0 } },
+    });
+
+    await listCustomerRefs();
+
+    expect(mockedApiClient.get).toHaveBeenCalledWith('/customers', { params: { pageSize: 100 } });
   });
 
   it('uploadAttachment posts a FormData containing the file under the key "file"', async () => {

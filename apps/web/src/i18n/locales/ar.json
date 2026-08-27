@@ -28,6 +28,12 @@
     "pagination": {
       "summary": "صفحة {page} من {totalPages} — {total} إجمالاً"
     },
+    "pageSize": { "label": "عدد الصفوف في الصفحة" },
+    "sort": {
+      "sortBy": "ترتيب حسب {column}",
+      "ascending": "تصاعدي",
+      "descending": "تنازلي"
+    },
     "state": {
       "loading": "جارٍ التحميل…",
       "empty": "لا يوجد ما يُعرض.",

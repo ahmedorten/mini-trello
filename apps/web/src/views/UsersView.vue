@@ -3,11 +3,12 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useUsersStore } from '@/stores/users';
-import type { UserSummary } from '@/api/users';
+import type { UserSortField, UserSummary } from '@/api/users';
 import AppStateBlock from '@/components/AppStateBlock.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppBadge from '@/components/AppBadge.vue';
 import AppButton from '@/components/AppButton.vue';
+import AppSortHeader from '@/components/AppSortHeader.vue';
 
 const auth = useAuthStore();
 const users = useUsersStore();
@@ -61,6 +62,16 @@ function onStatusFilterChange(event: Event): void {
 
 function onPageChange(page: number): void {
   users.setPage(page);
+}
+
+function onPageSizeChange(pageSize: number): void {
+  users.setPageSize(pageSize);
+}
+
+// AppSortHeader emits a bare string — the field prop values are typed at each
+// call site, but the emit itself cannot carry a per-view union.
+function onSort(field: string): void {
+  users.setSort(field as UserSortField);
 }
 
 // --- create ----------------------------------------------------------------
@@ -212,7 +223,7 @@ onMounted(() => {
       </AppButton>
     </header>
 
-    <form class="users__filters" @submit.prevent>
+    <form class="filter-bar" @submit.prevent>
       <label>
         {{ t('common.search') }}
         <input v-model="searchTerm" type="search" :placeholder="t('user.list.searchPlaceholder')">
@@ -291,17 +302,17 @@ onMounted(() => {
     <AppStateBlock v-else-if="!users.items.length" variant="empty" :message="t('user.list.empty')" />
 
     <template v-else>
-      <div class="users__table-wrap">
-        <table class="users__table">
+      <div class="data-table-wrap">
+        <table class="data-table">
           <caption class="sr-only">{{ t('user.list.caption') }}</caption>
           <thead>
             <tr>
-              <th scope="col">{{ t('user.field.name') }}</th>
-              <th scope="col">{{ t('user.field.email') }}</th>
+              <AppSortHeader field="fullName" :label="t('user.field.name')" :active-field="users.filters.sort" :active-order="users.filters.order" @sort="onSort" />
+              <AppSortHeader field="email" :label="t('user.field.email')" :active-field="users.filters.sort" :active-order="users.filters.order" @sort="onSort" />
               <th scope="col">{{ t('user.field.roles') }}</th>
               <th scope="col">{{ t('user.field.department') }}</th>
-              <th scope="col">{{ t('user.field.status') }}</th>
-              <th scope="col">{{ t('user.field.lastLogin') }}</th>
+              <AppSortHeader field="isActive" :label="t('user.field.status')" :active-field="users.filters.sort" :active-order="users.filters.order" @sort="onSort" />
+              <AppSortHeader field="lastLoginAt" :label="t('user.field.lastLogin')" :active-field="users.filters.sort" :active-order="users.filters.order" @sort="onSort" />
               <th scope="col">{{ t('common.actions') }}</th>
             </tr>
           </thead>
@@ -317,7 +328,7 @@ onMounted(() => {
                 </AppBadge>
               </td>
               <td>{{ user.lastLoginAt ? d(new Date(user.lastLoginAt), 'long') : t('user.status.never') }}</td>
-              <td class="users__actions">
+              <td class="data-table__actions">
                 <button v-if="auth.can('users:write')" type="button" @click="openEdit(user)">{{ t('common.edit') }}</button>
                 <button v-if="auth.can('roles:assign')" type="button" @click="openRoles(user)">{{ t('user.action.roles') }}</button>
                 <button
@@ -349,7 +360,9 @@ onMounted(() => {
           :page="users.meta.page"
           :total-pages="users.meta.totalPages"
           :total="users.meta.total"
+          :page-size="users.meta.pageSize"
           @change="onPageChange"
+          @page-size-change="onPageSizeChange"
         />
       </div>
     </template>
@@ -429,20 +442,6 @@ onMounted(() => {
   margin-block-end: var(--space-5);
 }
 
-.users__filters {
-  display: flex;
-  gap: var(--space-4);
-  margin-block-end: var(--space-5);
-}
-
-.users__filters label {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-}
-
 .users__error {
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius);
@@ -454,31 +453,6 @@ onMounted(() => {
 
 .users__error-block {
   margin-block-end: var(--space-4);
-}
-
-.users__table-wrap {
-  overflow-x: auto;
-}
-
-.users__table {
-  inline-size: 100%;
-  border-collapse: collapse;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-}
-
-.users__table th,
-.users__table td {
-  text-align: start;
-  padding: var(--space-3) var(--space-3);
-  border-block-end: 1px solid var(--color-border);
-}
-
-.users__actions {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
 }
 
 .users__panel {

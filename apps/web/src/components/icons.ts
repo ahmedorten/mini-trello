@@ -36,6 +36,8 @@ export const ICON_PATHS = {
   smartphone: 'M7 3h10a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM10 18h4',
   clipboard: 'M9 4h6v3H9zM7 6h2M15 6h2a1 1 0 0 1 1 1v13H6V7a1 1 0 0 1 1-1M9 12h6M9 16h4',
   phone: 'M6 3h4l2 5-3 2a11 11 0 0 0 5 5l2-3 5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 5 4a1 1 0 0 1 1-1z',
+  'sort-asc': 'M12 19V5M6 11l6-6 6 6',
+  'sort-desc': 'M12 5v14M6 13l6 6 6-6',
 } as const;
 
 export type IconName = keyof typeof ICON_PATHS;

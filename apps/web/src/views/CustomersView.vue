@@ -4,11 +4,18 @@ import { RouterLink } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useCustomersStore } from '@/stores/customers';
-import { CUSTOMER_STATUSES, CUSTOMER_TYPES, type CustomerStatus, type CustomerType } from '@/api/customers';
+import {
+  CUSTOMER_STATUSES,
+  CUSTOMER_TYPES,
+  type CustomerSortField,
+  type CustomerStatus,
+  type CustomerType,
+} from '@/api/customers';
 import AppStateBlock from '@/components/AppStateBlock.vue';
 import AppBadge from '@/components/AppBadge.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppIcon from '@/components/AppIcon.vue';
+import AppSortHeader from '@/components/AppSortHeader.vue';
 
 const auth = useAuthStore();
 const customers = useCustomersStore();
@@ -54,6 +61,16 @@ function onPageChange(page: number): void {
   customers.setPage(page);
 }
 
+function onPageSizeChange(pageSize: number): void {
+  customers.setPageSize(pageSize);
+}
+
+// AppSortHeader emits a bare string — the field prop values are typed at each
+// call site, but the emit itself cannot carry a per-view union.
+function onSort(field: string): void {
+  customers.setSort(field as CustomerSortField);
+}
+
 onMounted(() => {
   void customers.load();
 });
@@ -69,7 +86,7 @@ onMounted(() => {
       </RouterLink>
     </header>
 
-    <form class="customers__filters" @submit.prevent>
+    <form class="filter-bar" @submit.prevent>
       <label>
         {{ t('common.search') }}
         <input v-model="searchTerm" type="search" :placeholder="t('customer.list.searchPlaceholder')">
@@ -108,17 +125,17 @@ onMounted(() => {
     <AppStateBlock v-else-if="!customers.items.length" variant="empty" :message="t('customer.list.empty')" />
 
     <template v-else>
-      <div class="customers__table-wrap">
-        <table class="customers__table">
+      <div class="data-table-wrap">
+        <table class="data-table">
           <caption class="sr-only">{{ t('customer.list.caption') }}</caption>
           <thead>
             <tr>
-              <th scope="col">{{ t('customer.field.name') }}</th>
-              <th scope="col">{{ t('customer.field.type') }}</th>
-              <th scope="col">{{ t('customer.field.email') }}</th>
+              <AppSortHeader field="name" :label="t('customer.field.name')" :active-field="customers.filters.sort" :active-order="customers.filters.order" @sort="onSort" />
+              <AppSortHeader field="type" :label="t('customer.field.type')" :active-field="customers.filters.sort" :active-order="customers.filters.order" @sort="onSort" />
+              <AppSortHeader field="email" :label="t('customer.field.email')" :active-field="customers.filters.sort" :active-order="customers.filters.order" @sort="onSort" />
               <th scope="col">{{ t('customer.field.phone') }}</th>
-              <th scope="col">{{ t('customer.field.city') }}</th>
-              <th scope="col">{{ t('customer.field.status') }}</th>
+              <AppSortHeader field="city" :label="t('customer.field.city')" :active-field="customers.filters.sort" :active-order="customers.filters.order" @sort="onSort" />
+              <AppSortHeader field="status" :label="t('customer.field.status')" :active-field="customers.filters.sort" :active-order="customers.filters.order" @sort="onSort" />
               <th scope="col">{{ t('customer.field.notesFiles') }}</th>
               <th scope="col">{{ t('common.actions') }}</th>
             </tr>
@@ -136,7 +153,7 @@ onMounted(() => {
                 <AppBadge :tone="STATUS_TONE[customer.status]">{{ t(`customer.status.${customer.status}`) }}</AppBadge>
               </td>
               <td>{{ customer.counts.notes }} / {{ customer.counts.attachments }}</td>
-              <td class="customers__actions">
+              <td class="data-table__actions">
                 <RouterLink :to="`/customers/${customer.id}`">{{ t('common.view') }}</RouterLink>
                 <RouterLink v-if="auth.can('customers:write')" :to="`/customers/${customer.id}/edit`">
                   {{ t('common.edit') }}
@@ -153,7 +170,9 @@ onMounted(() => {
           :page="customers.meta.page"
           :total-pages="customers.meta.totalPages"
           :total="customers.meta.total"
+          :page-size="customers.meta.pageSize"
           @change="onPageChange"
+          @page-size-change="onPageSizeChange"
         />
       </div>
     </template>
@@ -181,46 +200,7 @@ onMounted(() => {
   font-weight: var(--font-weight-medium);
 }
 
-.customers__filters {
-  display: flex;
-  gap: var(--space-4);
-  margin-block-end: var(--space-5);
-}
-
-.customers__filters label {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-}
-
 .customers__error {
   margin-block-end: var(--space-4);
-}
-
-.customers__table-wrap {
-  overflow-x: auto;
-}
-
-.customers__table {
-  inline-size: 100%;
-  border-collapse: collapse;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-}
-
-.customers__table th,
-.customers__table td {
-  text-align: start;
-  padding: var(--space-3) var(--space-3);
-  border-block-end: 1px solid var(--color-border);
-}
-
-.customers__actions {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
 }
 </style>

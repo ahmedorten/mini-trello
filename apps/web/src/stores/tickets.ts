@@ -24,6 +24,7 @@ import {
   type TicketComment,
   type TicketHistoryEntry,
   type TicketPriority,
+  type TicketSortField,
   type TicketStatus,
   type UpdateTicketPayload,
 } from '@/api/tickets';
@@ -52,6 +53,8 @@ export const useTicketsStore = defineStore('tickets', () => {
     priority: '' as TicketPriority | '',
     status: '' as TicketStatus | '',
     assignedAgentId: '',
+    sort: '' as TicketSortField | '',
+    order: 'asc' as 'asc' | 'desc',
   });
 
   function currentParams(): ListTicketsParams {
@@ -63,6 +66,8 @@ export const useTicketsStore = defineStore('tickets', () => {
       priority: filters.priority || undefined,
       status: filters.status || undefined,
       assignedAgentId: filters.assignedAgentId || undefined,
+      sort: filters.sort || undefined,
+      order: filters.sort ? filters.order : undefined,
     };
   }
 
@@ -191,6 +196,27 @@ export const useTicketsStore = defineStore('tickets', () => {
 
   function setPage(page: number): void {
     filters.page = page;
+    void load();
+  }
+
+  /** One column at a time. A new column sorts ascending; the active column
+   *  flips. There is no third click that clears the sort (Product rule 5). */
+  function setSort(field: TicketSortField): void {
+    if (filters.sort === field) {
+      filters.order = filters.order === 'asc' ? 'desc' : 'asc';
+    } else {
+      filters.sort = field;
+      filters.order = 'asc';
+    }
+
+    filters.page = 1;
+    void load();
+  }
+
+  function setPageSize(pageSize: number): void {
+    filters.pageSize = pageSize;
+    // Page 4 of 20-row pages does not exist at 100 rows a page (Product rule 3).
+    filters.page = 1;
     void load();
   }
 
@@ -354,6 +380,8 @@ export const useTicketsStore = defineStore('tickets', () => {
     setStatusFilter,
     setAssignedAgentFilter,
     setPage,
+    setSort,
+    setPageSize,
     create,
     update,
     setStatus,

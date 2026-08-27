@@ -8,7 +8,7 @@ const ICON_NAMES = [
   'dashboard', 'workspace', 'tickets', 'customers', 'users', 'tasks', 'communication', 'status',
   'search', 'plus', 'edit', 'trash', 'download', 'upload', 'close', 'check', 'alert-triangle',
   'alert-circle', 'info', 'clock', 'globe', 'logout', 'menu', 'chevron-start', 'chevron-end',
-  'chevron-down', 'paperclip', 'send', 'user-check',
+  'chevron-down', 'paperclip', 'send', 'user-check', 'sort-asc', 'sort-desc',
 ] as const;
 
 describe('AppIcon', () => {
@@ -59,5 +59,19 @@ describe('AppIcon', () => {
 
     expect(rtlStart).toBe(ltrEnd);
     expect(rtlEnd).toBe(ltrStart);
+  });
+
+  it('does not flip sort-asc or sort-desc under ar, unlike chevron-start', () => {
+    const ltrAsc = mount(AppIcon, { props: { name: 'sort-asc' } }).find('path').attributes('d');
+    const ltrDesc = mount(AppIcon, { props: { name: 'sort-desc' } }).find('path').attributes('d');
+
+    const locale = useLocaleStore();
+    locale.setLocale('ar');
+
+    const rtlAsc = mount(AppIcon, { props: { name: 'sort-asc' } }).find('path').attributes('d');
+    const rtlDesc = mount(AppIcon, { props: { name: 'sort-desc' } }).find('path').attributes('d');
+
+    expect(rtlAsc).toBe(ltrAsc);
+    expect(rtlDesc).toBe(ltrDesc);
   });
 });

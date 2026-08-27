@@ -33,6 +33,11 @@ export interface PaginatedUsers {
   meta: PaginationMeta;
 }
 
+/** Mirrors UserSortField in apps/api/src/users/dto/list-users-query.dto.ts.
+ *  The API 400s on any other value, so this union is the whitelist on this
+ *  side too. */
+export type UserSortField = 'fullName' | 'email' | 'isActive' | 'lastLoginAt' | 'createdAt';
+
 export interface ListUsersParams {
   page?: number;
   pageSize?: number;
@@ -40,6 +45,8 @@ export interface ListUsersParams {
   roleKey?: string;
   departmentId?: string;
   isActive?: 'true' | 'false';
+  sort?: UserSortField;
+  order?: 'asc' | 'desc';
 }
 
 /** Mirrors RoleResponseDto. */

@@ -52,6 +52,18 @@ describe('tickets api', () => {
     expect(mockedApiClient.get).toHaveBeenCalledWith('/tickets', { params });
   });
 
+  it('listTickets puts sort and order on the query string', async () => {
+    mockedApiClient.get.mockResolvedValue({
+      data: { items: [], meta: { page: 1, pageSize: 20, total: 0, totalPages: 0 } },
+    });
+
+    await listTickets({ sort: 'subject', order: 'asc' });
+
+    expect(mockedApiClient.get).toHaveBeenCalledWith('/tickets', {
+      params: { sort: 'subject', order: 'asc' },
+    });
+  });
+
   it('uploadTicketAttachment posts a FormData containing the file under the key "file"', async () => {
     mockedApiClient.post.mockResolvedValue({ data: sampleAttachment });
     const file = new File(['bytes'], 'screenshot.png', { type: 'image/png' });

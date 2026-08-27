@@ -15,6 +15,7 @@ import {
   type PaginationMeta,
   type Role,
   type UpdateUserPayload,
+  type UserSortField,
   type UserSummary,
 } from '@/api/users';
 import { toErrorMessage } from '@/api/client';
@@ -27,13 +28,21 @@ export const useUsersStore = defineStore('users', () => {
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
-  const filters = reactive<Required<Pick<ListUsersParams, 'page' | 'pageSize'>> & Omit<ListUsersParams, 'page' | 'pageSize'>>({
+  const filters = reactive<
+    Required<Pick<ListUsersParams, 'page' | 'pageSize'>> &
+      Omit<ListUsersParams, 'page' | 'pageSize' | 'sort' | 'order'> & {
+        sort: UserSortField | '';
+        order: 'asc' | 'desc';
+      }
+  >({
     page: 1,
     pageSize: 20,
     search: '',
     roleKey: '',
     departmentId: '',
     isActive: undefined,
+    sort: '',
+    order: 'asc',
   });
 
   function currentParams(): ListUsersParams {
@@ -44,6 +53,8 @@ export const useUsersStore = defineStore('users', () => {
       roleKey: filters.roleKey || undefined,
       departmentId: filters.departmentId || undefined,
       isActive: filters.isActive,
+      sort: filters.sort || undefined,
+      order: filters.sort ? filters.order : undefined,
     };
   }
 
@@ -113,6 +124,27 @@ export const useUsersStore = defineStore('users', () => {
 
   function setPage(page: number): void {
     filters.page = page;
+    void load();
+  }
+
+  /** One column at a time. A new column sorts ascending; the active column
+   *  flips. There is no third click that clears the sort (Product rule 5). */
+  function setSort(field: UserSortField): void {
+    if (filters.sort === field) {
+      filters.order = filters.order === 'asc' ? 'desc' : 'asc';
+    } else {
+      filters.sort = field;
+      filters.order = 'asc';
+    }
+
+    filters.page = 1;
+    void load();
+  }
+
+  function setPageSize(pageSize: number): void {
+    filters.pageSize = pageSize;
+    // Page 4 of 20-row pages does not exist at 100 rows a page (Product rule 3).
+    filters.page = 1;
     void load();
   }
 
@@ -195,6 +227,8 @@ export const useUsersStore = defineStore('users', () => {
     setRoleFilter,
     setStatusFilter,
     setPage,
+    setSort,
+    setPageSize,
     create,
     update,
     setStatus,

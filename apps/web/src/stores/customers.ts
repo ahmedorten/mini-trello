@@ -20,6 +20,7 @@ import {
   type CustomerStatus,
   type CustomerType,
   type CreateCustomerPayload,
+  type CustomerSortField,
   type ListCustomersParams,
   type NotePayload,
   type UpdateCustomerPayload,
@@ -45,6 +46,8 @@ export const useCustomersStore = defineStore('customers', () => {
     status: '' as CustomerStatus | '',
     type: '' as CustomerType | '',
     city: '',
+    sort: '' as CustomerSortField | '',
+    order: 'asc' as 'asc' | 'desc',
   });
 
   function currentParams(): ListCustomersParams {
@@ -55,6 +58,8 @@ export const useCustomersStore = defineStore('customers', () => {
       status: filters.status || undefined,
       type: filters.type || undefined,
       city: filters.city || undefined,
+      sort: filters.sort || undefined,
+      order: filters.sort ? filters.order : undefined,
     };
   }
 
@@ -158,6 +163,27 @@ export const useCustomersStore = defineStore('customers', () => {
 
   function setPage(page: number): void {
     filters.page = page;
+    void load();
+  }
+
+  /** One column at a time. A new column sorts ascending; the active column
+   *  flips. There is no third click that clears the sort (Product rule 5). */
+  function setSort(field: CustomerSortField): void {
+    if (filters.sort === field) {
+      filters.order = filters.order === 'asc' ? 'desc' : 'asc';
+    } else {
+      filters.sort = field;
+      filters.order = 'asc';
+    }
+
+    filters.page = 1;
+    void load();
+  }
+
+  function setPageSize(pageSize: number): void {
+    filters.pageSize = pageSize;
+    // Page 4 of 20-row pages does not exist at 100 rows a page (Product rule 3).
+    filters.page = 1;
     void load();
   }
 
@@ -315,6 +341,8 @@ export const useCustomersStore = defineStore('customers', () => {
     setStatusFilter,
     setTypeFilter,
     setPage,
+    setSort,
+    setPageSize,
     create,
     update,
     setStatus,

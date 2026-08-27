@@ -58,12 +58,14 @@ function mockCustomers(overrides: {
     meta: overrides.meta ?? null,
     isLoading: overrides.isLoading ?? false,
     error: overrides.error ?? null,
-    filters: { page: 1, pageSize: 20, search: '', status: '', type: '', city: '' },
+    filters: { page: 1, pageSize: 20, search: '', status: '', type: '', city: '', sort: '', order: 'asc' },
     load: vi.fn(async () => {}),
     setSearch: vi.fn(),
     setStatusFilter: vi.fn(),
     setTypeFilter: vi.fn(),
     setPage: vi.fn(),
+    setSort: vi.fn(),
+    setPageSize: vi.fn(),
   });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -172,7 +174,7 @@ describe('CustomersView', () => {
     });
 
     const wrapper = await mountWithRouter();
-    const selects = wrapper.findAll('.customers__filters select');
+    const selects = wrapper.findAll('.filter-bar select');
     await selects[0].setValue('ACTIVE');
 
     expect(store.setStatusFilter).toHaveBeenCalledWith('ACTIVE');
@@ -184,7 +186,7 @@ describe('CustomersView', () => {
     const store = mockCustomers({ items: [makeCustomer()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
 
     const wrapper = await mountWithRouter();
-    await wrapper.find('.customers__filters input[type="search"]').setValue('orten');
+    await wrapper.find('.filter-bar input[type="search"]').setValue('orten');
 
     vi.advanceTimersByTime(300);
     await Promise.resolve();
@@ -203,5 +205,42 @@ describe('CustomersView', () => {
     const nameLink = wrapper.find('tbody tr a');
 
     expect(nameLink.attributes('href')).toBe('/customers/c-1');
+  });
+
+  it('renders a sortable header for each API-sortable column and a plain th for the rest', async () => {
+    mockAuth(['customers:read']);
+    mockCustomers({ items: [makeCustomer()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
+
+    const wrapper = await mountWithRouter();
+    const sortableHeaders = wrapper.findAll('th[aria-sort]');
+    const plainHeaders = wrapper.findAll('th:not([aria-sort])');
+
+    expect(sortableHeaders).toHaveLength(5);
+    expect(plainHeaders.map((h) => h.text())).toEqual(
+      expect.arrayContaining(['Phone', 'Notes/Files', 'Actions']),
+    );
+  });
+
+  it('calls store.setSort with the API field name when a header button is clicked', async () => {
+    mockAuth(['customers:read']);
+    const store = mockCustomers({ items: [makeCustomer()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
+
+    const wrapper = await mountWithRouter();
+    await wrapper.find('th[aria-sort] button').trigger('click');
+
+    expect(store.setSort).toHaveBeenCalledWith('name');
+  });
+
+  it('calls store.setPageSize when the page-size select changes', async () => {
+    mockAuth(['customers:read']);
+    const store = mockCustomers({
+      items: [makeCustomer()],
+      meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
+    });
+
+    const wrapper = await mountWithRouter();
+    await wrapper.find('.app-pagination__page-size select').setValue('50');
+
+    expect(store.setPageSize).toHaveBeenCalledWith(50);
   });
 });

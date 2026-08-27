@@ -66,13 +66,18 @@ function mockUsers(overrides: {
     departments: [],
     isLoading: overrides.isLoading ?? false,
     error: overrides.error ?? null,
-    filters: { page: 1, pageSize: 20, search: '', roleKey: '', departmentId: '', isActive: undefined },
+    filters: {
+      page: 1, pageSize: 20, search: '', roleKey: '', departmentId: '', isActive: undefined,
+      sort: '', order: 'asc',
+    },
     load: vi.fn(async () => {}),
     loadLookups: vi.fn(async () => {}),
     setSearch: vi.fn(),
     setRoleFilter: vi.fn(),
     setStatusFilter: vi.fn(),
     setPage: vi.fn(),
+    setSort: vi.fn(),
+    setPageSize: vi.fn(),
     create: vi.fn(async () => true),
     update: vi.fn(async () => true),
     setStatus: vi.fn(async () => true),
@@ -145,7 +150,7 @@ describe('UsersView', () => {
     const store = mockUsers({ items: [makeUser()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
 
     const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
-    await wrapper.find('.users__filters select').setValue('support-agent');
+    await wrapper.find('.filter-bar select').setValue('support-agent');
 
     expect(store.setRoleFilter).toHaveBeenCalledWith('support-agent');
   });
@@ -155,7 +160,7 @@ describe('UsersView', () => {
     mockUsers({ items: [makeUser()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
 
     const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
-    const actions = wrapper.find('.users__actions');
+    const actions = wrapper.find('.data-table__actions');
 
     expect(actions.findAll('button')).toHaveLength(0);
   });
@@ -165,7 +170,7 @@ describe('UsersView', () => {
     mockUsers({ items: [makeUser()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
 
     const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
-    const labels = wrapper.find('.users__actions').findAll('button').map((b) => b.text());
+    const labels = wrapper.find('.data-table__actions').findAll('button').map((b) => b.text());
 
     expect(labels).toEqual(['Edit', 'Roles', 'Deactivate', 'Reset password']);
   });
@@ -175,7 +180,7 @@ describe('UsersView', () => {
     mockUsers({ items: [makeUser({ id: 'u-1' })], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
 
     const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
-    const labels = wrapper.find('.users__actions').findAll('button').map((b) => b.text());
+    const labels = wrapper.find('.data-table__actions').findAll('button').map((b) => b.text());
 
     expect(labels).not.toContain('Deactivate');
   });
@@ -212,7 +217,7 @@ describe('UsersView', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
     const deactivateButton = wrapper
-      .find('.users__actions')
+      .find('.data-table__actions')
       .findAll('button')
       .find((b) => b.text() === 'Deactivate')!;
 
@@ -222,5 +227,39 @@ describe('UsersView', () => {
     confirmSpy.mockReturnValue(true);
     await deactivateButton.trigger('click');
     expect(store.setStatus).toHaveBeenCalledWith('u-1', false);
+  });
+
+  it('renders a sortable header for each API-sortable column and a plain th for the rest', () => {
+    mockAuth(['users:read']);
+    mockUsers({ items: [makeUser()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
+
+    const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
+    const sortableHeaders = wrapper.findAll('th[aria-sort]');
+    const plainHeaders = wrapper.findAll('th:not([aria-sort])');
+
+    expect(sortableHeaders).toHaveLength(4);
+    expect(plainHeaders.map((h) => h.text())).toEqual(
+      expect.arrayContaining(['Roles', 'Department', 'Actions']),
+    );
+  });
+
+  it('calls store.setSort with the API field name when a header button is clicked', async () => {
+    mockAuth(['users:read']);
+    const store = mockUsers({ items: [makeUser()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
+
+    const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
+    await wrapper.find('th[aria-sort] button').trigger('click');
+
+    expect(store.setSort).toHaveBeenCalledWith('fullName');
+  });
+
+  it('calls store.setPageSize when the page-size select changes', async () => {
+    mockAuth(['users:read']);
+    const store = mockUsers({ items: [makeUser()], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 } });
+
+    const wrapper = mount(UsersView, { global: { plugins: [createPinia()] } });
+    await wrapper.find('.app-pagination__page-size select').setValue('50');
+
+    expect(store.setPageSize).toHaveBeenCalledWith(50);
   });
 });

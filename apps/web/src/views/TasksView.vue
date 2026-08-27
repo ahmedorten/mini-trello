@@ -4,11 +4,18 @@ import { RouterLink } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useTasksStore } from '@/stores/tasks';
-import { AGENT_TASK_STATUSES, type AgentTask, type AgentTaskScope, type AgentTaskStatus } from '@/api/tasks';
+import {
+  AGENT_TASK_STATUSES,
+  type AgentTask,
+  type AgentTaskScope,
+  type AgentTaskSortField,
+  type AgentTaskStatus,
+} from '@/api/tasks';
 import AppStateBlock from '@/components/AppStateBlock.vue';
 import AppBadge from '@/components/AppBadge.vue';
 import AppButton from '@/components/AppButton.vue';
 import AppPagination from '@/components/AppPagination.vue';
+import AppSortHeader from '@/components/AppSortHeader.vue';
 import TaskFormModal from '@/components/TaskFormModal.vue';
 
 const auth = useAuthStore();
@@ -29,6 +36,16 @@ function onOverdueOnlyChange(event: Event): void {
 
 function onPageChange(page: number): void {
   tasks.setPage(page);
+}
+
+function onPageSizeChange(pageSize: number): void {
+  tasks.setPageSize(pageSize);
+}
+
+// AppSortHeader emits a bare string — the field prop values are typed at each
+// call site, but the emit itself cannot carry a per-view union.
+function onSort(field: string): void {
+  tasks.setSort(field as AgentTaskSortField);
 }
 
 const isModalOpen = ref(false);
@@ -71,7 +88,7 @@ onMounted(() => {
       </AppButton>
     </header>
 
-    <form class="tasks__filters" @submit.prevent>
+    <form class="filter-bar" @submit.prevent>
       <label>
         {{ t('task.scope.mine') }}
         <select :value="tasks.filters.scope" @change="onScopeChange">
@@ -103,14 +120,14 @@ onMounted(() => {
     <AppStateBlock v-else-if="!tasks.items.length" variant="empty" :message="t('task.empty')" />
 
     <template v-else>
-      <div class="tasks__table-wrap">
-        <table class="tasks__table">
+      <div class="data-table-wrap">
+        <table class="data-table">
           <caption class="sr-only">{{ t('nav.tasks') }}</caption>
           <thead>
             <tr>
-              <th scope="col">{{ t('task.title') }}</th>
-              <th scope="col">{{ t('ticket.field.status') }}</th>
-              <th scope="col">{{ t('task.due') }}</th>
+              <AppSortHeader field="title" :label="t('task.title')" :active-field="tasks.filters.sort" :active-order="tasks.filters.order" @sort="onSort" />
+              <AppSortHeader field="status" :label="t('ticket.field.status')" :active-field="tasks.filters.sort" :active-order="tasks.filters.order" @sort="onSort" />
+              <AppSortHeader field="dueAt" :label="t('task.due')" :active-field="tasks.filters.sort" :active-order="tasks.filters.order" @sort="onSort" />
               <th scope="col">{{ t('task.linkedTicket') }}</th>
               <th scope="col">{{ t('task.linkedCustomer') }}</th>
               <th scope="col">{{ t('task.assignee') }}</th>
@@ -133,7 +150,7 @@ onMounted(() => {
                 <span v-else>—</span>
               </td>
               <td>{{ task.assignee.fullName }}</td>
-              <td class="tasks__actions">
+              <td class="data-table__actions">
                 <button type="button" @click="toggleComplete(task)">
                   {{ task.status === 'DONE' ? t('task.reopen') : t('task.complete') }}
                 </button>
@@ -150,7 +167,9 @@ onMounted(() => {
         :page="tasks.meta.page"
         :total-pages="tasks.meta.totalPages"
         :total="tasks.meta.total"
+        :page-size="tasks.meta.pageSize"
         @change="onPageChange"
+        @page-size-change="onPageSizeChange"
       />
     </template>
 
@@ -166,50 +185,9 @@ onMounted(() => {
   margin-block-end: var(--space-5);
 }
 
-.tasks__filters {
-  display: flex;
-  gap: var(--space-4);
-  margin-block-end: var(--space-5);
-  flex-wrap: wrap;
-  align-items: flex-end;
-}
-
-.tasks__filters label {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-}
-
 .tasks__overdue-only {
   flex-direction: row !important;
   align-items: center;
   gap: var(--space-2) !important;
-}
-
-.tasks__table-wrap {
-  overflow-x: auto;
-}
-
-.tasks__table {
-  inline-size: 100%;
-  border-collapse: collapse;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-}
-
-.tasks__table th,
-.tasks__table td {
-  text-align: start;
-  padding: var(--space-3);
-  border-block-end: 1px solid var(--color-border);
-}
-
-.tasks__actions {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
 }
 </style>

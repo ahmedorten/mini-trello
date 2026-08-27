@@ -182,6 +182,82 @@ describe('useCustomersStore', () => {
     expect(store.filters.page).toBe(1);
   });
 
+  it('setSort sets the field ascending and resets page to 1', async () => {
+    mockedListCustomers.mockResolvedValue(samplePage);
+    const store = useCustomersStore();
+    store.filters.page = 3;
+
+    store.setSort('name');
+    await Promise.resolve();
+
+    expect(store.filters.sort).toBe('name');
+    expect(store.filters.order).toBe('asc');
+    expect(store.filters.page).toBe(1);
+  });
+
+  it('setSort on the active field flips the direction', async () => {
+    mockedListCustomers.mockResolvedValue(samplePage);
+    const store = useCustomersStore();
+    store.setSort('name');
+    await Promise.resolve();
+
+    store.setSort('name');
+    await Promise.resolve();
+
+    expect(store.filters.order).toBe('desc');
+  });
+
+  it('setSort on a new field resets the direction to asc', async () => {
+    mockedListCustomers.mockResolvedValue(samplePage);
+    const store = useCustomersStore();
+    store.setSort('name');
+    await Promise.resolve();
+    store.setSort('name');
+    await Promise.resolve();
+    expect(store.filters.order).toBe('desc');
+
+    store.setSort('createdAt');
+    await Promise.resolve();
+
+    expect(store.filters.sort).toBe('createdAt');
+    expect(store.filters.order).toBe('asc');
+  });
+
+  it('setPageSize resets page to 1', async () => {
+    mockedListCustomers.mockResolvedValue(samplePage);
+    const store = useCustomersStore();
+    store.filters.page = 3;
+
+    store.setPageSize(50);
+    await Promise.resolve();
+
+    expect(store.filters.pageSize).toBe(50);
+    expect(store.filters.page).toBe(1);
+  });
+
+  it('currentParams omits sort and order when sort is empty', async () => {
+    mockedListCustomers.mockResolvedValue(samplePage);
+    const store = useCustomersStore();
+
+    await store.load();
+
+    const params = mockedListCustomers.mock.calls[0][0];
+    expect(params.sort).toBeUndefined();
+    expect(params.order).toBeUndefined();
+  });
+
+  it('currentParams omits order when sort is empty but order is set', async () => {
+    mockedListCustomers.mockResolvedValue(samplePage);
+    const store = useCustomersStore();
+    store.filters.order = 'desc';
+
+    await store.load();
+
+    const params = mockedListCustomers.mock.calls[0][0];
+    expect(params.sort).toBeUndefined();
+    expect(params.order).toBeUndefined();
+  });
+
   it('the latestRequestId guard discards a slower earlier response', async () => {
     const store = useCustomersStore();
 

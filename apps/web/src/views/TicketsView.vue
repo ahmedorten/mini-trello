@@ -10,12 +10,14 @@ import {
   TICKET_STATUSES,
   type TicketCategory,
   type TicketPriority,
+  type TicketSortField,
   type TicketStatus,
 } from '@/api/tickets';
 import AppStateBlock from '@/components/AppStateBlock.vue';
 import AppBadge from '@/components/AppBadge.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppIcon from '@/components/AppIcon.vue';
+import AppSortHeader from '@/components/AppSortHeader.vue';
 
 const auth = useAuthStore();
 const tickets = useTicketsStore();
@@ -58,6 +60,16 @@ function onPageChange(page: number): void {
   tickets.setPage(page);
 }
 
+function onPageSizeChange(pageSize: number): void {
+  tickets.setPageSize(pageSize);
+}
+
+// AppSortHeader emits a bare string — the field prop values are typed at each
+// call site, but the emit itself cannot carry a per-view union.
+function onSort(field: string): void {
+  tickets.setSort(field as TicketSortField);
+}
+
 onMounted(() => {
   void tickets.load();
 });
@@ -73,7 +85,7 @@ onMounted(() => {
       </RouterLink>
     </header>
 
-    <form class="tickets__filters" @submit.prevent>
+    <form class="filter-bar" @submit.prevent>
       <label>
         {{ t('common.search') }}
         <input v-model="searchTerm" type="search" :placeholder="t('ticket.list.searchPlaceholder')">
@@ -122,16 +134,16 @@ onMounted(() => {
     <AppStateBlock v-else-if="!tickets.items.length" variant="empty" :message="t('ticket.list.empty')" />
 
     <template v-else>
-      <div class="tickets__table-wrap">
-        <table class="tickets__table">
+      <div class="data-table-wrap">
+        <table class="data-table">
           <caption class="sr-only">{{ t('ticket.list.caption') }}</caption>
           <thead>
             <tr>
-              <th scope="col">{{ t('ticket.field.subject') }}</th>
+              <AppSortHeader field="subject" :label="t('ticket.field.subject')" :active-field="tickets.filters.sort" :active-order="tickets.filters.order" @sort="onSort" />
               <th scope="col">{{ t('ticket.field.customer') }}</th>
-              <th scope="col">{{ t('ticket.field.category') }}</th>
-              <th scope="col">{{ t('ticket.field.priority') }}</th>
-              <th scope="col">{{ t('ticket.field.status') }}</th>
+              <AppSortHeader field="category" :label="t('ticket.field.category')" :active-field="tickets.filters.sort" :active-order="tickets.filters.order" @sort="onSort" />
+              <AppSortHeader field="priority" :label="t('ticket.field.priority')" :active-field="tickets.filters.sort" :active-order="tickets.filters.order" @sort="onSort" />
+              <AppSortHeader field="status" :label="t('ticket.field.status')" :active-field="tickets.filters.sort" :active-order="tickets.filters.order" @sort="onSort" />
               <th scope="col">{{ t('ticket.field.assignedAgent') }}</th>
               <th scope="col">{{ t('ticket.field.commentsFiles') }}</th>
               <th scope="col">{{ t('common.actions') }}</th>
@@ -154,7 +166,7 @@ onMounted(() => {
               </td>
               <td>{{ ticket.assignedAgent?.fullName ?? t('common.unassigned') }}</td>
               <td>{{ ticket.counts.comments }} / {{ ticket.counts.attachments }}</td>
-              <td class="tickets__actions">
+              <td class="data-table__actions">
                 <RouterLink :to="`/tickets/${ticket.id}`">{{ t('common.view') }}</RouterLink>
                 <RouterLink v-if="auth.can('tickets:write')" :to="`/tickets/${ticket.id}/edit`">
                   {{ t('common.edit') }}
@@ -171,7 +183,9 @@ onMounted(() => {
           :page="tickets.meta.page"
           :total-pages="tickets.meta.totalPages"
           :total="tickets.meta.total"
+          :page-size="tickets.meta.pageSize"
           @change="onPageChange"
+          @page-size-change="onPageSizeChange"
         />
       </div>
     </template>
@@ -199,47 +213,7 @@ onMounted(() => {
   font-weight: var(--font-weight-medium);
 }
 
-.tickets__filters {
-  display: flex;
-  gap: var(--space-4);
-  margin-block-end: var(--space-5);
-  flex-wrap: wrap;
-}
-
-.tickets__filters label {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-}
-
 .tickets__error {
   margin-block-end: var(--space-4);
-}
-
-.tickets__table-wrap {
-  overflow-x: auto;
-}
-
-.tickets__table {
-  inline-size: 100%;
-  border-collapse: collapse;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-}
-
-.tickets__table th,
-.tickets__table td {
-  text-align: start;
-  padding: var(--space-3) var(--space-3);
-  border-block-end: 1px solid var(--color-border);
-}
-
-.tickets__actions {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
 }
 </style>

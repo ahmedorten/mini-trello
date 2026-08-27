@@ -53,6 +53,17 @@ export interface PaginatedTickets {
 /** Mirrors TicketScope in apps/api/src/tickets/dto/list-tickets-query.dto.ts */
 export type TicketScope = 'mine' | 'unassigned' | 'workable' | 'all';
 
+/** Mirrors TicketSortField in
+ *  apps/api/src/tickets/dto/list-tickets-query.dto.ts. The API 400s on any
+ *  other value, so this union is the whitelist on this side too. */
+export type TicketSortField =
+  | 'subject'
+  | 'category'
+  | 'priority'
+  | 'status'
+  | 'createdAt'
+  | 'updatedAt';
+
 export interface ListTicketsParams {
   page?: number;
   pageSize?: number;
@@ -63,6 +74,8 @@ export interface ListTicketsParams {
   assignedAgentId?: string;
   customerId?: string;
   scope?: TicketScope;
+  sort?: TicketSortField;
+  order?: 'asc' | 'desc';
 }
 
 /** Mirrors CreateTicketDto. */

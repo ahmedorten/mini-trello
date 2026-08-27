@@ -28,6 +28,12 @@
     "pagination": {
       "summary": "Page {page} of {totalPages} — {total} total"
     },
+    "pageSize": { "label": "Rows per page" },
+    "sort": {
+      "sortBy": "Sort by {column}",
+      "ascending": "ascending",
+      "descending": "descending"
+    },
     "state": {
       "loading": "Loading…",
       "empty": "Nothing to show.",

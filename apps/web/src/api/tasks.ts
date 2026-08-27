@@ -40,6 +40,11 @@ export interface PaginatedAgentTasks {
   meta: PaginationMeta;
 }
 
+/** Mirrors AgentTaskSortField in
+ *  apps/api/src/tasks/dto/list-agent-tasks-query.dto.ts. The API 400s on any
+ *  other value, so this union is the whitelist on this side too. */
+export type AgentTaskSortField = 'title' | 'status' | 'dueAt' | 'createdAt';
+
 export interface ListAgentTasksParams {
   page?: number;
   pageSize?: number;
@@ -50,6 +55,8 @@ export interface ListAgentTasksParams {
   customerId?: string;
   dueBefore?: string;
   overdueOnly?: boolean;
+  sort?: AgentTaskSortField;
+  order?: 'asc' | 'desc';
 }
 
 /** Mirrors CreateAgentTaskDto. `assigneeId` defaults to the caller server-side

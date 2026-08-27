@@ -8,6 +8,7 @@ import {
   updateTask,
   type AgentTask,
   type AgentTaskScope,
+  type AgentTaskSortField,
   type AgentTaskStatus,
   type CreateAgentTaskPayload,
   type ListAgentTasksParams,
@@ -35,6 +36,8 @@ export const useTasksStore = defineStore('tasks', () => {
     scope: 'mine' as AgentTaskScope,
     status: '' as AgentTaskStatus | '',
     overdueOnly: false,
+    sort: '' as AgentTaskSortField | '',
+    order: 'asc' as 'asc' | 'desc',
   });
 
   function currentParams(): ListAgentTasksParams {
@@ -44,6 +47,8 @@ export const useTasksStore = defineStore('tasks', () => {
       scope: filters.scope,
       status: filters.status || undefined,
       overdueOnly: filters.overdueOnly || undefined,
+      sort: filters.sort || undefined,
+      order: filters.sort ? filters.order : undefined,
     };
   }
 
@@ -118,6 +123,27 @@ export const useTasksStore = defineStore('tasks', () => {
 
   function setPage(page: number): void {
     filters.page = page;
+    void load();
+  }
+
+  /** One column at a time. A new column sorts ascending; the active column
+   *  flips. There is no third click that clears the sort (Product rule 5). */
+  function setSort(field: AgentTaskSortField): void {
+    if (filters.sort === field) {
+      filters.order = filters.order === 'asc' ? 'desc' : 'asc';
+    } else {
+      filters.sort = field;
+      filters.order = 'asc';
+    }
+
+    filters.page = 1;
+    void load();
+  }
+
+  function setPageSize(pageSize: number): void {
+    filters.pageSize = pageSize;
+    // Page 4 of 20-row pages does not exist at 100 rows a page (Product rule 3).
+    filters.page = 1;
     void load();
   }
 
@@ -232,6 +258,8 @@ export const useTasksStore = defineStore('tasks', () => {
     setStatusFilter,
     setOverdueOnly,
     setPage,
+    setSort,
+    setPageSize,
     create,
     update,
     setStatus,
