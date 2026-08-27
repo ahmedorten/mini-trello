@@ -250,6 +250,44 @@ describe('CommunicationTimeline', () => {
     expect(wrapper.text()).toContain('Showing 2 of 3');
   });
 
+  it('an ingested interaction with no author renders the systemAuthor fallback', async () => {
+    mockAuth(['interactions:write']);
+    mockedListTicketInteractions.mockResolvedValue([
+      makeInteraction({ id: 'i-inbound', direction: 'INBOUND', createdBy: null }),
+    ]);
+
+    const wrapper = mountTimeline();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Received automatically');
+  });
+
+  it('hides Delete on a null-author entry for a caller without customers:archive', async () => {
+    mockAuth(['interactions:write']);
+    mockedListTicketInteractions.mockResolvedValue([
+      makeInteraction({ id: 'i-inbound', createdBy: null }),
+    ]);
+
+    const wrapper = mountTimeline();
+    await flushPromises();
+
+    // Matches the server: a null author is nobody's row, so only an
+    // ARCHIVE_PERMISSION holder can delete it — and the API would 403.
+    expect(wrapper.text()).not.toContain('Delete');
+  });
+
+  it('shows Delete on a null-author entry for a customers:archive holder', async () => {
+    mockAuth(['interactions:write', 'customers:archive']);
+    mockedListTicketInteractions.mockResolvedValue([
+      makeInteraction({ id: 'i-inbound', createdBy: null }),
+    ]);
+
+    const wrapper = mountTimeline();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Delete');
+  });
+
   it('renders loading, error, and empty states', async () => {
     mockAuth([]);
     mockedListTicketInteractions.mockRejectedValueOnce(new Error('down'));

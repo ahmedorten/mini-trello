@@ -159,7 +159,7 @@ async function submitComposer(): Promise<void> {
 
 function canDelete(interaction: CustomerInteraction): boolean {
   return auth.can('interactions:write')
-    && (interaction.createdBy.id === auth.user?.id || auth.can('customers:archive'));
+    && (interaction.createdBy?.id === auth.user?.id || auth.can('customers:archive'));
 }
 
 async function remove(interaction: CustomerInteraction): Promise<void> {
@@ -284,7 +284,7 @@ function isOtherTicket(interaction: CustomerInteraction): boolean {
 
         <p class="communication-timeline__meta">
           {{ d(new Date(interaction.occurredAt), 'long') }} —
-          {{ t('customer.detail.loggedBy', { name: interaction.createdBy.fullName }) }}
+          {{ t('customer.detail.loggedBy', { name: interaction.createdBy?.fullName ?? t('communication.systemAuthor') }) }}
         </p>
 
         <AppButton v-if="canDelete(interaction)" variant="ghost" size="sm" @click="remove(interaction)">

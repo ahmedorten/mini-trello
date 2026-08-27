@@ -388,7 +388,7 @@ onUnmounted(() => {
             <p class="customer-detail__interaction-subject">{{ interaction.subject }}</p>
             <p v-if="interaction.body">{{ interaction.body }}</p>
             <p class="customer-detail__interaction-meta">
-              {{ t('customer.detail.loggedBy', { name: interaction.createdBy.fullName }) }}
+              {{ t('customer.detail.loggedBy', { name: interaction.createdBy?.fullName ?? t('communication.systemAuthor') }) }}
             </p>
             <button
               v-if="auth.can('interactions:write')"

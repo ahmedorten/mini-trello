@@ -395,7 +395,8 @@
     "noProviderNotice": "تسجيل هذا الرد يحفظه في سجل التفاعلات. لن تُرسل أي رسالة إلى العميل.",
     "empty": "لا يوجد تواصل مسجل بعد.",
     "filterChannel": "القناة",
-    "filterDirection": "الاتجاه"
+    "filterDirection": "الاتجاه",
+    "systemAuthor": "وارد تلقائيًا"
   },
   "task": {
     "title": "العنوان",

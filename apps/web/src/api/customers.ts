@@ -136,7 +136,9 @@ export interface CustomerInteraction {
   subject: string;
   body: string | null;
   occurredAt: string;
-  createdBy: UserRef;
+  /** Null for a message ingested through POST /api/communication/inbound/:channel
+   *  — no agent typed it. */
+  createdBy: UserRef | null;
   createdAt: string;
   ticketId: string | null;
   ticket: InteractionTicketRef | null;

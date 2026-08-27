@@ -395,7 +395,8 @@
     "noProviderNotice": "Recording this response logs it in the interaction history. No message is sent to the customer.",
     "empty": "No communication logged yet.",
     "filterChannel": "Channel",
-    "filterDirection": "Direction"
+    "filterDirection": "Direction",
+    "systemAuthor": "Received automatically"
   },
   "task": {
     "title": "Title",

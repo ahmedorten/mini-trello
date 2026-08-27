@@ -50,7 +50,7 @@ export interface InteractionDelivery {
   metadata?: Prisma.InputJsonValue | null;
 }
 
-type SelectedInteraction = Prisma.CustomerInteractionGetPayload<{
+export type SelectedInteraction = Prisma.CustomerInteractionGetPayload<{
   select: typeof INTERACTION_SELECT;
 }>;
 
@@ -142,6 +142,22 @@ export class InteractionsService {
     return InteractionsService.toResponse(created);
   }
 
+  /** One interaction by id, scoped to its customer. Mirrors remove()'s lookup
+   *  but returns the full projection; the inbound route's idempotent 200 uses
+   *  it so a repeat delivery returns the same body shape as the 201. */
+  async findOne(customerId: string, id: string): Promise<InteractionResponseDto> {
+    const interaction = await this.prisma.customerInteraction.findFirst({
+      where: { id, customerId },
+      select: INTERACTION_SELECT,
+    });
+
+    if (!interaction) {
+      throw new NotFoundException('Interaction not found.');
+    }
+
+    return InteractionsService.toResponse(interaction);
+  }
+
   async remove(customerId: string, id: string, caller: AuthenticatedUser): Promise<void> {
     const interaction = await this.prisma.customerInteraction.findFirst({
       where: { id, customerId },
@@ -187,7 +203,13 @@ export class InteractionsService {
     }
   }
 
-  private static toResponse(interaction: SelectedInteraction): InteractionResponseDto {
+  /** Public so TimelineService maps the same rows the same way. Reusing this
+   *  mapper is what stops the two timelines drifting in shape. */
+  static toResponseList(rows: SelectedInteraction[]): InteractionResponseDto[] {
+    return rows.map((row) => InteractionsService.toResponse(row));
+  }
+
+  static toResponse(interaction: SelectedInteraction): InteractionResponseDto {
     return {
       id: interaction.id,
       customerId: interaction.customerId,

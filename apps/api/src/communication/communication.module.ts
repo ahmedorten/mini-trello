@@ -5,6 +5,8 @@ import { CustomersModule } from '../customers/customers.module';
 import { TicketsModule } from '../tickets/tickets.module';
 import { ChannelRegistryService } from './channel-registry.service';
 import { ChannelsController } from './channels.controller';
+import { CommunicationController } from './communication.controller';
+import { CommunicationService } from './communication.service';
 import { CHANNEL_ADAPTERS, ChannelAdapter } from './channels/channel-adapter';
 import { EmailChannel } from './channels/email.channel';
 import { LiveChatChannel } from './channels/live-chat.channel';
@@ -12,6 +14,9 @@ import { LoggedOnlyChannel } from './channels/logged-only.channel';
 import { SmsChannel } from './channels/sms.channel';
 import { WebFormChannel } from './channels/web-form.channel';
 import { WhatsAppChannel } from './channels/whatsapp.channel';
+import { InboundSecretGuard } from './guards/inbound-secret.guard';
+import { InboundController } from './inbound.controller';
+import { TimelineService } from './timeline.service';
 
 /** PHONE, MEETING, and OTHER carry the exact canRespond/isRealtime values the
  *  deleted CHANNEL_REGISTRY carried for them. */
@@ -29,7 +34,7 @@ const LOGGED_ONLY_ADAPTERS: ChannelAdapter[] = [
  */
 @Module({
   imports: [AuthModule, CustomersModule, TicketsModule],
-  controllers: [ChannelsController],
+  controllers: [ChannelsController, CommunicationController, InboundController],
   providers: [
     EmailChannel,
     WhatsAppChannel,
@@ -37,6 +42,10 @@ const LOGGED_ONLY_ADAPTERS: ChannelAdapter[] = [
     SmsChannel,
     WebFormChannel,
     ChannelRegistryService,
+    CommunicationService,
+    TimelineService,
+    // ConfigModule is global (app.module.ts), so ConfigService needs no import.
+    InboundSecretGuard,
     {
       provide: CHANNEL_ADAPTERS,
       inject: [EmailChannel, WhatsAppChannel, LiveChatChannel, SmsChannel, WebFormChannel],
